@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create a new Obsidian vault from the reviewed One Bite starter."""
+"""Open an Obsidian vault or create one from the reviewed One Bite starter."""
 
 import argparse
 import json
@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 
 
@@ -25,7 +26,7 @@ REQUIRED = {
     '_attachments/.gitkeep',
     '_templates/.gitkeep',
 }
-PRIVATE_MARKERS = ('/users/', 'baileykamahele', 'sensetime')
+PRIVATE_MARKERS = ('/users/', '/home/', 'file://', 'dropbox')
 EXCLUDED_NAMES = {'workspace.json', 'workspaces.json', '.ds_store'}
 
 
@@ -110,7 +111,26 @@ def create_vault(template, destination):
     return destination
 
 
-def main(argv=None):
+def existing_vault(value=None):
+    if value is None:
+        return None
+    path = Path(os.path.abspath(Path(value).expanduser()))
+    reject_symlink_ancestors(path)
+    if path.is_symlink() or not path.is_dir():
+        raise ValueError(f'Vault directory does not exist or is unsafe: {path}')
+    return path
+
+
+def open_vault(value=None):
+    vault = existing_vault(value)
+    command = ['open', '-a', 'Obsidian']
+    if vault is not None:
+        command.append(str(vault))
+    subprocess.run(command, check=True)
+    return vault
+
+
+def create_main(argv):
     parser = argparse.ArgumentParser(description='Create a new Obsidian vault from the One Bite starter.')
     parser.add_argument('directory', type=Path, help='new vault directory; it must not already exist')
     parser.add_argument('--template-dir', type=Path, default=DEFAULT_TEMPLATE,
@@ -124,6 +144,29 @@ def main(argv=None):
     else:
         print(f'Open it with: open -a Obsidian {shlex_quote(str(vault))}')
     return 0
+
+
+def open_main(argv):
+    parser = argparse.ArgumentParser(
+        description='Open Obsidian, optionally selecting an existing vault directory.')
+    parser.add_argument('directory', nargs='?', type=Path,
+                        help='existing vault directory; omit it to open Obsidian normally')
+    args = parser.parse_args(argv)
+    vault = open_vault(args.directory)
+    if vault is None:
+        print('Opened Obsidian.')
+    else:
+        print(f'Opened Obsidian vault: {vault}')
+    return 0
+
+
+def main(argv=None, command_name=None):
+    command_name = command_name or Path(sys.argv[0]).name
+    if command_name == 'ob':
+        return open_main(argv)
+    if command_name in {'obn', 'ob.py'}:
+        return create_main(argv)
+    raise ValueError(f'Unsupported Obsidian command name: {command_name}')
 
 
 def shlex_quote(value):

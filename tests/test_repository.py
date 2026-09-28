@@ -110,6 +110,11 @@ class RepositoryTests(unittest.TestCase):
         self.assertTrue(any('documentation' in error for error in errors))
         changed = {'scripts/desktop.py', 'VERSION', 'tests/test_setup.py', 'docs/installation.md'}
         self.assertEqual(check_change.policy_errors(changed, files, files, '1.4.2', '1.4.3'), [])
+        initial = {'scripts/desktop.py', 'tests/test_setup.py', 'docs/installation.md'}
+        self.assertEqual(check_change.policy_errors(initial, files, files, '0.0.1', '0.0.1',
+                                                    allow_unreleased_initial=True), [])
+        self.assertTrue(any('patch bump' in error for error in
+                            check_change.policy_errors(initial, files, files, '0.0.1', '0.0.1')))
 
         errors = check_change.policy_errors({'config/sources.tsv'}, files, files,
                                             '1.4.2', '1.4.3')

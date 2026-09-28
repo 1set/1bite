@@ -92,9 +92,10 @@ class ConfigurationTests(unittest.TestCase):
                   for path in installed.rglob('*') if path.is_file()}
         self.assertEqual(actual, source)
         self.assertFalse((installed / '.obsidian/workspace.json').exists())
-        command = self.home / configure.OBSIDIAN_COMMAND_PATH
-        self.assertEqual(command.read_bytes(), (ROOT / 'scripts/ob.py').read_bytes())
-        self.assertTrue(command.stat().st_mode & 0o111)
+        for relative in configure.OBSIDIAN_COMMAND_PATHS:
+            command = self.home / relative
+            self.assertEqual(command.read_bytes(), (ROOT / 'scripts/ob.py').read_bytes())
+            self.assertTrue(command.stat().st_mode & 0o111)
         configure.verify(self.home, with_claude=True)
 
     def test_obsidian_template_updates_back_up_outside_the_scaffold(self):
@@ -1250,7 +1251,7 @@ ensure_cask kiro Kiro.app
         line = next(line for line in script.splitlines() if line.startswith('for executable in '))
         actual = line.removeprefix('for executable in ').removesuffix('; do').split()
         self.assertEqual(set(actual), {mapping.get(p, p.rsplit('/', 1)[-1]) for p in expected}
-                         | {'npm', 'neofetch', 'ob', 'claude', 'codex'})
+                         | {'npm', 'neofetch', 'ob', 'obn', 'claude', 'codex'})
         for package in packages:
             result = self.run_shell(f'formula_command {package}')
             self.assertEqual(result.stdout.strip(), mapping.get(package, package.rsplit('/', 1)[-1]))

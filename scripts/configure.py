@@ -29,7 +29,7 @@ VSCODE_PATH = Path('Library/Application Support/Code/User/settings.json')
 KIRO_PATH = Path('.kiro/settings/permissions.yaml')
 GIT_IGNORE_PATH = Path('.config/1bite/gitignore-global')
 OBSIDIAN_TEMPLATE_PATH = Path('.config/1bite/obsidian-vault')
-OBSIDIAN_COMMAND_PATH = Path('.local/bin/ob')
+OBSIDIAN_COMMAND_PATHS = (Path('.local/bin/ob'), Path('.local/bin/obn'))
 ZSH_MODULES = ('framework.zsh', 'options.zsh', 'tools.zsh', 'development.zsh',
                'utilities.zsh', 'media.zsh', 'git-functions.zsh', 'terminal.zsh')
 GIT_DEFAULT_SECTIONS = {
@@ -195,7 +195,7 @@ def obsidian_template_files(config_dir):
         except UnicodeDecodeError as error:
             raise ValueError(f'Obsidian template file is not UTF-8 text: {relative}') from error
         lowered = text.lower()
-        if any(marker in lowered for marker in ('/users/', 'baileykamahele', 'sensetime')):
+        if any(marker in lowered for marker in ('/users/', '/home/', 'file://', 'dropbox')):
             raise ValueError(f'Obsidian template contains a private marker: {relative}')
         if path.suffix == '.json':
             json.loads(text)
@@ -355,12 +355,12 @@ def configure(home, config_dir, codex_home=None, claude_home=None, shell_home=No
     shell_home = shell_home or home
     zsh_directory = home / '.config/1bite/zsh'
     obsidian_directory = home / OBSIDIAN_TEMPLATE_PATH
-    obsidian_command_path = home / OBSIDIAN_COMMAND_PATH
+    obsidian_command_paths = [home / path for path in OBSIDIAN_COMMAND_PATHS]
     paths = ([claude_path] if with_claude else []) + [codex_path, home / PROFILE_PATH,
              home / '.config/1bite/shell.zsh', home / '.config/1bite/env.zsh',
              home / '.config/1bite/vimrc', home / '.vimrc',
              home / GIT_IGNORE_PATH, home / VSCODE_PATH, home / KIRO_PATH,
-             obsidian_directory, obsidian_command_path,
+             obsidian_directory, *obsidian_command_paths,
              zsh_directory, *[zsh_directory / name for name in ZSH_MODULES],
              shell_home / '.zshrc', shell_home / '.zprofile']
     for path in paths:
@@ -413,9 +413,10 @@ def configure(home, config_dir, codex_home=None, claude_home=None, shell_home=No
         destination = obsidian_directory / relative
         write(destination, content, backup_dir=obsidian_backup)
         destination.chmod(0o644)
-    write(obsidian_command_path, obsidian_command,
-          backup_dir=home / '.config/1bite/backups')
-    obsidian_command_path.chmod(0o755)
+    for obsidian_command_path in obsidian_command_paths:
+        write(obsidian_command_path, obsidian_command,
+              backup_dir=home / '.config/1bite/backups')
+        obsidian_command_path.chmod(0o755)
     # Existing VS Code settings may be JSONC. Preserve their bytes, including comments.
     write(home / VSCODE_PATH, vscode, preserve=True)
     # JSON is valid YAML. Personal YAML policies remain byte-for-byte intact.
@@ -487,11 +488,12 @@ def verify(home, codex_home=None, claude_home=None, shell_home=None, with_claude
         path = obsidian_directory / relative
         if path.is_symlink() or not path.is_file() or path.read_bytes() != content:
             raise ValueError(f'Managed Obsidian template differs from selected template: {relative}')
-    obsidian_command = home / OBSIDIAN_COMMAND_PATH
-    if (obsidian_command.is_symlink() or not obsidian_command.is_file()
-            or obsidian_command.read_bytes() != (ROOT / 'scripts/ob.py').read_bytes()
-            or not os.access(obsidian_command, os.X_OK)):
-        raise ValueError('Managed Obsidian vault command differs from the release')
+    for relative in OBSIDIAN_COMMAND_PATHS:
+        obsidian_command = home / relative
+        if (obsidian_command.is_symlink() or not obsidian_command.is_file()
+                or obsidian_command.read_bytes() != (ROOT / 'scripts/ob.py').read_bytes()
+                or not os.access(obsidian_command, os.X_OK)):
+            raise ValueError(f'Managed Obsidian command differs from the release: {obsidian_command}')
     selected = {'shell.zsh': config_dir / 'shell.zsh', 'env.zsh': config_dir / 'env.zsh'}
     selected.update({'zsh/' + name: config_dir / 'zsh' / name for name in ZSH_MODULES})
     for relative, template in selected.items():

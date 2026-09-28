@@ -61,7 +61,9 @@ The same guide is saved as `manual-steps.txt` in the run directory printed by th
 ./1bite --with-claude                # Include Claude Desktop and Claude Code
 ./1bite --with-sogou                  # Prepare the Sogou installer for manual setup
 ./1bite --docker-smoke                # Check Docker after the engine is running
-ob ~/Documents/Notes/Work --open       # Create and open a new vault
+ob                                      # Open Obsidian and its remembered vault
+ob ~/Documents/Notes/Work              # Open an existing vault
+obn ~/Documents/Notes/Work --open      # Create and open a new starter vault
 ```
 
 Repeat the same selection flags when rerunning or verifying. `--managed-desktop` does not enable Claude.
@@ -74,7 +76,7 @@ Repeat the same selection flags when rerunning or verifying. `--managed-desktop`
 - Go exports the effective `GOPATH` and adds an explicit `GOBIN`, or each `GOPATH/bin`, to `PATH`. Existing overrides take precedence.
 - Git receives missing shared defaults and a conservative global ignore file. User identity, credentials, signing, URL rewrites, includes, aliases, and an existing custom ignore file are preserved.
 - Powerlevel10k preserves explicit themes and `~/.p10k.zsh`. After the first install, run `exec zsh`, then `p10k configure` if the wizard does not open, and select an installed Nerd Font in your terminal.
-- `ob` copies the managed starter only into a new directory. Existing vaults remain user-owned and later One Bite updates affect only future vaults.
+- `ob` opens Obsidian or an existing vault. `obn` copies the managed starter only into a new directory. Existing vaults remain user-owned and later One Bite updates affect only future vaults.
 
 ## Terminal welcome and fetch tools
 

@@ -30,7 +30,7 @@ while IFS=$'\t' read -r -u 3 package filename; do
   font_cask_healthy "$package" "$filename"
 done 3<"$ROOT/config/font-casks.tsv"
 
-for executable in git git-lfs gh go node npm python3 uv rg duf fd bat fzf autojump zoxide jq yq tmux tree delta tig lazygit wget htop shellcheck shfmt ffmpeg magick fastfetch neofetch glow pop gum crush ob claude codex; do
+for executable in git git-lfs gh go node npm python3 uv rg duf fd bat fzf autojump zoxide jq yq tmux tree delta tig lazygit wget htop shellcheck shfmt ffmpeg magick fastfetch neofetch glow pop gum crush ob obn claude codex; do
   if [[ "$executable" == claude && "$WITH_CLAUDE" != true ]]; then continue; fi
   command -v "$executable"
 done
@@ -47,6 +47,7 @@ uv --version
 if [[ "$WITH_CLAUDE" == true ]]; then claude --version; fi
 codex --version
 ob --help >/dev/null
+obn --help >/dev/null
 if agent_healthy kiro-cli; then
   kiro-cli --version
   zsh -lic 'command -v kiro-cli'

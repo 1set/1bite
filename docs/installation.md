@@ -11,7 +11,7 @@ The default mode keeps vendor installation and first-launch flows for desktop ap
 | Docker Desktop | Official arm64 DMG | Official cask | First launch, privileged components, and engine initialization use the official GUI. Check the engine separately with `--docker-smoke`. |
 | iTerm2 | Official cask | Same | The vendor distributes a ZIP; the cask places the app. Existing settings are preserved. |
 | VS Code | Official cask | Same | The cask provides the architecture-specific app and the `code` command required for extension setup. |
-| Obsidian | Official cask | Same | Installs Obsidian.app. One Bite also installs an independent starter and the `ob` command; existing vaults are never changed. |
+| Obsidian | Official cask | Same | Installs Obsidian.app. One Bite adds `ob` to open existing vaults and `obn` to create an independent starter; existing vaults are never changed. |
 | Codex CLI | Official shell installer | Same | Resolves the current official release and preserves a healthy installation from another source. |
 | Claude Code CLI | Disabled; `--with-claude` uses the official Bash installer | Same and still opt-in | Uses the vendor-native installer instead of npm or Homebrew. |
 | Kiro CLI | Official Bash installer and native onboarding | Official manifest DMG plus managed Zsh integration | Default mode preserves vendor prompts and onboarding; managed mode validates the app, CLI links, and native dotfile integration. |

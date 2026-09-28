@@ -88,8 +88,30 @@ class ObsidianVaultTests(unittest.TestCase):
         destination = self.root / 'vault with spaces'
         with mock.patch.object(obsidian_vault.subprocess, 'run') as run:
             self.assertEqual(obsidian_vault.main([
-                '--template-dir', str(self.template), '--open', str(destination)]), 0)
+                '--template-dir', str(self.template), '--open', str(destination)],
+                command_name='obn'), 0)
         run.assert_called_once_with(['open', '-a', 'Obsidian', str(destination)], check=True)
+
+    def test_ob_opens_an_existing_vault_or_obsidian_itself(self):
+        destination = self.root / 'vault with spaces'
+        destination.mkdir()
+        with mock.patch.object(obsidian_vault.subprocess, 'run') as run:
+            self.assertEqual(obsidian_vault.main([str(destination)], command_name='ob'), 0)
+            self.assertEqual(obsidian_vault.main([], command_name='ob'), 0)
+        self.assertEqual(run.call_args_list, [
+            mock.call(['open', '-a', 'Obsidian', str(destination)], check=True),
+            mock.call(['open', '-a', 'Obsidian'], check=True),
+        ])
+
+    def test_ob_refuses_missing_or_symlinked_vaults(self):
+        with self.assertRaisesRegex(ValueError, 'does not exist or is unsafe'):
+            obsidian_vault.open_vault(self.root / 'missing')
+        target = self.root / 'target'
+        target.mkdir()
+        link = self.root / 'link'
+        link.symlink_to(target, target_is_directory=True)
+        with self.assertRaisesRegex(ValueError, 'symlink component'):
+            obsidian_vault.open_vault(link)
 
 
 if __name__ == '__main__':

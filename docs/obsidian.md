@@ -1,14 +1,21 @@
 # Obsidian and the vault starter
 
-One Bite installs Obsidian through the official Homebrew cask. It also installs a reviewed starter at `~/.config/1bite/obsidian-vault` and an `ob` command in `~/.local/bin`.
+One Bite installs Obsidian through the official Homebrew cask. It also installs a reviewed starter at `~/.config/1bite/obsidian-vault` and two short commands in `~/.local/bin`.
 
-Create a vault in a new directory and open it:
+Open Obsidian with its remembered vault, or open a specific existing vault:
 
 ```bash
-ob ~/Documents/Notes/ProjectName --open
+ob
+ob ~/Documents/Notes/ProjectName
 ```
 
-The destination must not already exist. Creation happens in a private adjacent staging directory followed by an atomic rename. A failure leaves no partial vault, and a rerun never overwrites a vault or personal changes. Without `--open`, the command prints a shell-safe `open -a Obsidian ...` command. Launch Obsidian once from Applications if macOS has not yet registered it.
+Create a starter vault in a new directory and open it:
+
+```bash
+obn ~/Documents/Notes/ProjectName --open
+```
+
+`ob` accepts only an existing directory and never changes it. The `obn` destination must not already exist. Creation happens in a private adjacent staging directory followed by an atomic rename. A failure leaves no partial vault, and a rerun never overwrites a vault or personal changes. Without `--open`, `obn` prints a shell-safe `open -a Obsidian ...` command. Launch Obsidian once from Applications if macOS has not yet registered it.
 
 ## Included settings
 

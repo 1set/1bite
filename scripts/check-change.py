@@ -33,7 +33,8 @@ def is_product(path):
     return False
 
 
-def policy_errors(changed, base_files, current_files, base_version, current_version):
+def policy_errors(changed, base_files, current_files, base_version, current_version,
+                  allow_unreleased_initial=False):
     changed = set(changed)
     errors = []
     product_changed = any(is_product(path) for path in changed)
@@ -46,6 +47,9 @@ def policy_errors(changed, base_files, current_files, base_version, current_vers
         after = VERSION.fullmatch(current_version.strip())
         if not before or not after:
             errors.append('product changes require numeric MAJOR.MINOR.PATCH VERSION values')
+        elif (allow_unreleased_initial and before.groups() == ('0', '0', '1')
+              and after.groups() == ('0', '0', '1')):
+            pass
         elif ((int(after[1]), int(after[2]), int(after[3])) !=
               (int(before[1]), int(before[2]), int(before[3]) + 1)):
             errors.append(f'product changes require one patch bump: {base_version.strip()} -> '
@@ -113,7 +117,10 @@ def main():
             return 1
         print(f'Initial public release policy passed against bootstrap base {base}.')
         return 0
-    errors = policy_errors(changed, base_files, current_files, base_version.stdout, current_version)
+    initial_tag = git('rev-parse', '--verify', 'refs/tags/v0.0.1^{commit}', check=False)
+    allow_unreleased_initial = initial_tag.returncode != 0
+    errors = policy_errors(changed, base_files, current_files, base_version.stdout, current_version,
+                           allow_unreleased_initial=allow_unreleased_initial)
     if errors:
         print(f'Change-set policy failed against {base}:', file=sys.stderr)
         for error in errors:
