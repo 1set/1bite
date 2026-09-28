@@ -120,6 +120,28 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(check_change.initial_errors('0.0.1\n'), [])
         self.assertTrue(check_change.initial_errors('0.0.2\n'))
 
+    def test_initial_release_accepts_a_repository_bootstrap_commit(self):
+        repo = self.root / 'bootstrap'
+        repo.mkdir()
+        subprocess.run(['git', 'init', '-q', '-b', 'master'], cwd=repo, env=self.env, check=True)
+        (repo / 'README.md').write_text('# One Bite\n')
+        subprocess.run(['git', 'add', 'README.md'], cwd=repo, env=self.env, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-qm', 'Initial commit'], cwd=repo, env=self.env, check=True)
+        base = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=repo,
+                                       env=self.env, text=True).strip()
+        (repo / 'scripts').mkdir()
+        shutil.copy2(ROOT / 'scripts/check-change.py', repo / 'scripts/check-change.py')
+        (repo / 'VERSION').write_text('0.0.1\n')
+        (repo / '1bite').write_text('#!/bin/bash\n')
+        subprocess.run(['git', 'add', 'VERSION', '1bite', 'scripts/check-change.py'],
+                       cwd=repo, env=self.env, check=True)
+        env = {**self.env, 'QUALITY_BASE_SHA': base}
+        result = subprocess.run([sys.executable, 'scripts/check-change.py'], cwd=repo,
+                                env=env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('bootstrap base', result.stdout)
+
 
 if __name__ == '__main__':
     unittest.main()

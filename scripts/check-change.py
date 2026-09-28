@@ -105,8 +105,14 @@ def main():
     current_files = set(git('ls-files', '-z').stdout.rstrip('\0').split('\0'))
     base_version = git('show', f'{base}:VERSION', check=False)
     if base_version.returncode:
-        print(f'Quality base has no VERSION file: {base}', file=sys.stderr)
-        return 2
+        errors = initial_errors(current_version)
+        if errors:
+            print(f'Quality base has no VERSION file: {base}', file=sys.stderr)
+            for error in errors:
+                print(f'- {error}', file=sys.stderr)
+            return 1
+        print(f'Initial public release policy passed against bootstrap base {base}.')
+        return 0
     errors = policy_errors(changed, base_files, current_files, base_version.stdout, current_version)
     if errors:
         print(f'Change-set policy failed against {base}:', file=sys.stderr)
