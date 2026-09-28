@@ -67,7 +67,7 @@ set undofile
 - Missing Oh My Zsh is installed with the official unattended installer while preserving `.zshrc`, without `chsh` or automatically starting Zsh. iTerm2 and new VS Code terminals use `/bin/zsh -l`.
 - A healthy Oh My Zsh installation receives a shallow Powerlevel10k checkout under `${ZSH_CUSTOM:-$ZSH/custom}/themes/powerlevel10k`. It is selected only if `ZSH_THEME` was not explicitly set. Configuration-only mode safely uses `robbyrussell` when Powerlevel10k is absent.
 - Existing Oh My Zsh directories, explicit themes including an empty theme, plugin lists, and `~/.p10k.zsh` are preserved. Normal reruns skip healthy checkouts. `--update` fast-forwards only a clean official checkout; custom origins, forks, symlinks, and incomplete directories remain with their existing owner.
-- PATH is deduplicated and includes `~/.local/bin`, Docker CLI, VS Code CLI, and Go tools. Existing `GOPATH` and `GOBIN` win; otherwise One Bite reads persisted `go env` values and falls back to `~/go`. It exports the effective workspace and adds explicit `GOBIN`, or every `GOPATH/bin`, without setting `GOROOT`.
+- PATH is deduplicated and includes `~/.local/bin`, available Docker.app and VS Code CLI directories, and Go tools. An application directory is added only when its client executable exists. Existing `GOPATH` and `GOBIN` win; otherwise One Bite reads persisted `go env` values and falls back to `~/go`. It exports the effective workspace and adds explicit `GOBIN`, or every `GOPATH/bin`, without setting `GOROOT`.
 - `DOCKER_DEFAULT_PLATFORM` defaults to `linux/amd64`, including on Apple Silicon, so ordinary Docker-compatible builds and runs target a portable x86-64 Linux platform. An already set value is preserved. This client setting does not install Docker Desktop and works with another compatible local engine or remote context. Override it before loading the environment or for one command when a project needs `linux/arm64` or a multi-platform builder.
 - Existing absolute `CODEX_HOME` and `CLAUDE_CONFIG_DIR` are honored. Finder-launched applications cannot be assumed to inherit terminal environment variables.
 
@@ -75,7 +75,7 @@ After Powerlevel10k is enabled, reopen iTerm2 and start a new window with **Prof
 
 The tools module enables fzf's Ctrl+R history search, Ctrl+T file picker, and Option+C directory picker only in an interactive terminal. Current fzf releases use `fzf --zsh`; older healthy Homebrew releases fall back to their installed `shell/completion.zsh` and `shell/key-bindings.zsh`. Personal bindings after the One Bite loader still take precedence.
 
-When no plugin list exists, the framework enables the built-in Oh My Zsh plugins `git`, `macos`, `vscode`, `web-search`, `extract`, `docker`, and `tmux`. The Docker plugin provides client completion and does not install Docker Desktop. An existing list remains user-owned. fzf, AutoJump, and zoxide deliberately stay out of the OMZ list because the tools module loads their native integrations once and verifies their actual widgets/functions.
+On a fresh machine, `.zshrc` contains only the managed loader and the default plugin array is declared inside `~/.config/1bite/zsh/framework.zsh`. The framework enables the built-in Oh My Zsh plugins `git`, `macos`, `vscode`, `web-search`, `extract`, and `tmux`, inserting `docker` only when the shell can resolve a Docker client. If `.zshrc` or another earlier file already defines `plugins=(...)`, that array remains user-owned and takes precedence byte-for-byte. fzf, AutoJump, and zoxide deliberately stay out of the managed OMZ list because the tools module loads their native integrations once and verifies their actual widgets/functions.
 
 For a maintained cross-shell prompt, consider [Starship](https://starship.rs/). [Oh My Posh](https://ohmyposh.dev/) provides a broader segment/template model, and [Spaceship](https://spaceship-prompt.sh/) stays native to Zsh. Initialize only one prompt engine. One Bite currently manages Powerlevel10k and leaves other prompt configuration untouched.
 
@@ -85,7 +85,7 @@ The templates use lowercase local conventions: `m` for Make, `g` for Git, and `d
 
 | Group | Shortcut -> command or behavior |
 | --- | --- |
-| Core | `g` -> `git`; `lg` -> `lazygit`; `dk` -> `docker`; `dc` -> `docker compose`; `ll` -> `ls -lah`; `d` -> directory stack |
+| Core | `g` -> `git`; `lg` -> `lazygit`; `ll` -> `ls -lah`; `d` -> directory stack; `dk` -> `docker` and `dc` -> `docker compose` when Docker is available |
 | Make | `m`, `mb`, `mi`, `mr`, `mt`, `mp` -> `make`, `make build/install/run/test/preview` |
 | Git stage/commit | `ga` -> `git add`; `gaa` -> `git add --all`; `gci` / `gcia` commit or amend with a required message; `gcmsg` -> `git commit --message` |
 | Git status/diff | `gs`, `gst`, `gss`; `gd` -> `git diff --no-index`; `gdiff`; `gds`; `gdca` |
@@ -107,7 +107,7 @@ The templates use lowercase local conventions: `m` for Make, `g` for Git, and `d
 | tmux | `t`, `ts`, `ta`, `tk`, `tn`, and `ta0` through `ta16` |
 | Miscellaneous | `reload`, `cls`, `e`, `ns`, `weather`, `webserver`, `fingerprint` |
 
-`gpre` shows status, stages all changes, and shows the staged diff. `gps1` pushes the current branch to origin with upstream tracking and rejects detached HEAD. Each function stops at its first failure. `dkclear` explicitly runs `docker system prune -f`, removing stopped containers, unused networks, dangling images, and build cache but not volumes.
+`gpre` shows status, stages all changes, and shows the staged diff. `gps1` pushes the current branch to origin with upstream tracking and rejects detached HEAD. Each function stops at its first failure. When Docker is available, `dkclear` runs `docker system prune -f`, removing stopped containers, unused networks, dangling images, and build cache but not volumes.
 
 ```bash
 mb                         # run this project's make build target
@@ -143,6 +143,8 @@ git config --global user.email "you@example.com"
 The default global ignore contains operating-system metadata, `*.log`, and Go coverage output. It deliberately does not ignore `.vscode/`, `.idea/`, `.cursor/`, `.claude/`, `task.json`, or business-file patterns because repositories may intend to commit them. Existing `core.excludesFile` and its file remain untouched.
 
 ## Claude and Codex aliases
+
+Codex aliases are part of the default installation. Claude aliases appear only when the optional Claude command is actually available.
 
 | Alias | Expansion |
 | --- | --- |

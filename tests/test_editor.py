@@ -278,13 +278,13 @@ dl https://example/file out.bin
                  'ffmpeg2wav ffmpeg2pcm video2wav pcm2wav heic2jpg png2jpg webp2png svg2png '
                  'transpng img_trans img_pure_jpg img_pure_png new_bash').split()
         prefix = '\n'.join(f"alias {name}='print WRONG'" for name in names)
-        result = self.zsh(prefix + '\nsource "$1"\nsource "$1"\nwhence -w ' + ' '.join(names))
+        result = self.zsh(prefix + '\ndocker() { :; }\nsource "$1"\nsource "$1"\nwhence -w ' + ' '.join(names))
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.splitlines(), [name + ': function' for name in names])
 
     def test_imported_helpers_failure_codes_literal_search_and_json(self):
         for code in (0, 23):
-            result = self.zsh('source "$1"\ndocker() { print -r -- "$*"; return ' + str(code) + '; }\ndkclear')
+            result = self.zsh('docker() { print -r -- "$*"; return ' + str(code) + '; }\nsource "$1"\ndkclear')
             self.assertEqual(result.returncode, code, result.stderr)
             self.assertEqual(result.stdout.splitlines(), ['system prune -f'])
         result = self.zsh('source "$1"\ncurl() { return 22; }\ndl https://example.invalid/file')
@@ -633,6 +633,9 @@ echo "ACTION $STEP_ACTION"
 
     def test_real_zsh_default_existing_and_empty_themes_and_noninteractive(self):
         self.fake_omz()
+        docker = self.home / '.local/bin/docker'
+        docker.write_text('#!/bin/sh\nexit 0\n')
+        docker.chmod(0o755)
         defaults = 'git macos vscode web-search extract docker tmux'
         for before, expected in [('', f'powerlevel10k/powerlevel10k:{defaults}:1'),
                                  ('ZSH_THEME=custom; plugins=(git python);', 'custom:git python:1'),
@@ -647,6 +650,36 @@ echo "ACTION $STEP_ACTION"
         (Path(self.env['ZSH']) / 'custom/themes/powerlevel10k/powerlevel10k.zsh-theme').unlink()
         result = self.zsh('source "$1"; print -r -- "$ZSH_THEME"')
         self.assertEqual(result.stdout.strip(), 'robbyrussell')
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_optional_plugins_aliases_and_functions_follow_available_clients(self):
+        self.fake_omz()
+        script = r'''
+path=("$HOME/empty-bin")
+alias cl=personal-claude
+alias dk=personal-docker
+alias dkclear=personal-clear
+source "${1:h}/zsh/framework.zsh"
+source "${1:h}/zsh/development.zsh"
+source "${1:h}/zsh/terminal.zsh"
+[[ "${plugins[*]}" == 'git macos vscode web-search extract tmux' ]] || exit 11
+[[ "$aliases[cl]" == personal-claude && "$aliases[dk]" == personal-docker && "$aliases[dkclear]" == personal-clear ]] || exit 12
+for name in clc cld cldc dc dkc dkcm dexec di dimg dkimg dklg dkls dkps dkrm dps dpsa drmi dks dksm dkst dkstat; do
+  (( ! $+aliases[$name] )) || exit 13
+done
+(( ! $+functions[dkclear] )) || exit 14
+'''
+        result = self.zsh(script)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+        result = self.zsh(r'''
+path=("$HOME/empty-bin")
+claude() { :; }
+docker() { :; }
+source "${1:h}/zsh/development.zsh"
+source "${1:h}/zsh/terminal.zsh"
+[[ "$aliases[cl]" == claude && "$aliases[dk]" == docker && $+functions[dkclear] -eq 1 ]]
+''')
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_real_zsh_environment_paths_deduplicate_and_keep_overrides(self):
@@ -666,6 +699,8 @@ print -rl -- $path
                 self.assertIn(str(path), entries)
             for path in expected:
                 self.assertGreater(entries.index(str(path)), entries.index(str(self.home / '.local/bin')))
+            docker_bin = Path('/Applications/Docker.app/Contents/Resources/bin')
+            self.assertEqual(str(docker_bin) in entries, os.access(docker_bin / 'docker', os.X_OK))
 
     def test_docker_default_platform_is_global_and_can_be_overridden(self):
         result = self.zsh('unset DOCKER_DEFAULT_PLATFORM; source "$1"; print -r -- "$DOCKER_DEFAULT_PLATFORM"',

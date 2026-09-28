@@ -39,6 +39,10 @@ OBSIDIAN_TEMPLATE_PATH = Path('.config/1bite/obsidian-vault')
 OBSIDIAN_COMMAND_PATHS = (Path('.local/bin/ob'), Path('.local/bin/obn'))
 ZSH_MODULES = ('framework.zsh', 'options.zsh', 'tools.zsh', 'development.zsh',
                'utilities.zsh', 'media.zsh', 'git-functions.zsh', 'terminal.zsh')
+DOCKER_ZSH_COMPLETIONS = {
+    '_docker': Path('/Applications/Docker.app/Contents/Resources/etc/docker.zsh-completion'),
+    '_docker-compose': Path('/Applications/Docker.app/Contents/Resources/etc/docker-compose.zsh-completion'),
+}
 GIT_DEFAULT_SECTIONS = {
     'alias', 'branch', 'color', 'commit', 'core', 'delta', 'diff', 'difftool', 'fetch', 'help', 'init',
     'interactive', 'merge', 'mergetool', 'pull', 'push', 'rebase', 'rerere', 'tag',
@@ -118,6 +122,53 @@ def unrecognized_source_line(content, recognized):
         if 'source' in tokens or '.' in tokens:
             return number
     return None
+
+
+def homebrew_prefix():
+    prefix = Path(os.environ.get('HOMEBREW_PREFIX', '/opt/homebrew'))
+    if not prefix.is_absolute():
+        raise ValueError('HOMEBREW_PREFIX must be an absolute path')
+    return prefix
+
+
+def broken_zsh_completion_links(prefix=None):
+    """Return dangling links that make compinit print during shell startup."""
+    directory = (prefix or homebrew_prefix()) / 'share/zsh/site-functions'
+    if not directory.exists():
+        return []
+    if directory.is_symlink() or not directory.is_dir():
+        raise ValueError(f'Homebrew Zsh completion path is not a regular directory: {directory}')
+    try:
+        return [path for path in sorted(directory.iterdir()) if path.is_symlink() and not path.exists()]
+    except OSError as error:
+        raise ValueError(f'Cannot inspect Homebrew Zsh completions: {directory}') from error
+
+
+def repair_broken_zsh_completions(prefix=None):
+    """Remove only dangling links created by Docker Desktop's Homebrew cask."""
+    prefix = prefix or homebrew_prefix()
+    for path in broken_zsh_completion_links(prefix):
+        expected = DOCKER_ZSH_COMPLETIONS.get(path.name)
+        if expected is None or Path(os.path.realpath(path)) != expected:
+            raise ValueError(
+                f'Broken Zsh completion symlink is not owned by One Bite: {path}. '
+                'Repair its Homebrew package or remove that one link with its original manager, then rerun.')
+        try:
+            path.unlink()
+        except OSError as error:
+            raise ValueError(
+                f'Cannot remove broken Docker Desktop completion link: {path}. '
+                'Repair it with the account that owns the Homebrew prefix, then rerun.') from error
+        print(f'Repaired: removed broken Docker Desktop completion link: {path}')
+
+
+def verify_zsh_completions(prefix=None):
+    broken = broken_zsh_completion_links(prefix)
+    if broken:
+        raise ValueError(
+            f'Broken Zsh completion symlink causes compinit startup output: {broken[0]}. '
+            'Run ./1bite --configure-only to repair known Docker Desktop links; '
+            'repair any other link with its original package manager.')
 
 
 def relocate_profile_artifacts(home):
@@ -513,6 +564,7 @@ def configure(home, config_dir, codex_home=None, claude_home=None, shell_home=No
             raise ValueError(f'Refusing to configure Kiro through symlink: {path}')
     if (home / KIRO_PATH).exists():
         kiro_policy_status(home)
+    repair_broken_zsh_completions()
     relocate_profile_artifacts(home)
     if with_claude:
         write(claude_path, claude.encode(), preserve=True)
@@ -595,6 +647,7 @@ def report_kiro(home):
 
 
 def verify(home, codex_home=None, claude_home=None, shell_home=None, with_claude=False, config_dir=ROOT / 'config'):
+    verify_zsh_completions()
     validate(((claude_home or home / '.claude') / 'settings.json').read_text() if with_claude else '{}',
              ((codex_home or home / '.codex') / 'config.toml').read_text(),
              (home / PROFILE_PATH).read_text())

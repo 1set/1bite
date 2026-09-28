@@ -30,7 +30,7 @@ Default mode installs command-line tools, iTerm2, VS Code, the selected AI CLIs,
 
 `prepared` means the package is complete; it does not mean the application is installed. `result.json` records `desktop_mode`, `with_docker`, `with_claude`, and `manual_steps`. `desktop-installers.json` records packages prepared during that run. A successful default run means automated work and package preparation succeeded. Missing applications remain `null` in inventory and appear under `pending_applications`.
 
-Docker Desktop is enabled with `--with-docker`. Without that flag it is not downloaded, checked, updated, or added to inventory and manual steps, even if Docker Desktop is already present. Repeat the flag for reruns, verification, and maintenance. `--managed-desktop` never enables it implicitly. The Docker-compatible shell aliases and `DOCKER_DEFAULT_PLATFORM` setting remain available for another local engine or a remote Docker context.
+Docker Desktop is enabled with `--with-docker`. Without that flag it is not downloaded, checked, updated, or added to inventory and manual steps, even if Docker Desktop is already present. Repeat the flag for reruns, verification, and maintenance. `--managed-desktop` never enables it implicitly. The shell exposes Docker aliases, its helper, plugin, and Docker.app CLI path only when a compatible client is actually available. `DOCKER_DEFAULT_PLATFORM` remains available for another local engine or a remote Docker context.
 
 Claude Desktop and Claude Code are enabled together with `--with-claude`. Without that flag they are not downloaded, configured, checked, updated, or removed. Repeat the same flag with rerun, verify, configure, update, and update-check commands. `--managed-desktop` never enables Claude implicitly.
 

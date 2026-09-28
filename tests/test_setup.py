@@ -305,6 +305,50 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual(rows.count(configure.SOURCE_LINE), 1)
         self.assertIn(personal.strip(), rows)
 
+    def test_dangling_docker_completions_are_repaired_without_changing_p10k(self):
+        prefix = self.home / 'brew'
+        completions = prefix / 'share/zsh/site-functions'
+        completions.mkdir(parents=True)
+        targets = {
+            '_docker': Path(os.path.realpath(self.home / 'missing-docker-completion')),
+            '_docker-compose': Path(os.path.realpath(self.home / 'missing-docker-compose-completion')),
+        }
+        docker = completions / '_docker'
+        compose = completions / '_docker-compose'
+        docker.symlink_to(targets['_docker'])
+        compose.symlink_to(targets['_docker-compose'])
+        p10k = self.home / '.p10k.zsh'
+        personal = "typeset -g POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=(status disk_usage time)\n"
+        p10k.write_text(personal)
+
+        with mock.patch.object(configure, 'DOCKER_ZSH_COMPLETIONS', targets), \
+                mock.patch.dict(os.environ, {'HOMEBREW_PREFIX': str(prefix)}):
+            with self.assertRaisesRegex(ValueError, 'compinit startup output'):
+                configure.verify_zsh_completions()
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                configure.configure(self.home, ROOT / 'config', with_claude=True)
+                configure.verify(self.home, with_claude=True)
+
+        self.assertFalse(docker.is_symlink())
+        self.assertFalse(compose.is_symlink())
+        self.assertEqual(p10k.read_text(), personal)
+        self.assertEqual(output.getvalue().count('removed broken Docker Desktop completion link'), 2)
+
+    def test_unknown_dangling_completion_is_preserved_and_stops_before_config_writes(self):
+        prefix = self.home / 'brew'
+        completions = prefix / 'share/zsh/site-functions'
+        completions.mkdir(parents=True)
+        unknown = completions / '_personal'
+        unknown.symlink_to(self.home / 'missing-personal-completion')
+
+        with mock.patch.dict(os.environ, {'HOMEBREW_PREFIX': str(prefix)}):
+            with self.assertRaisesRegex(ValueError, 'not owned by One Bite'):
+                self.apply()
+
+        self.assertTrue(unknown.is_symlink())
+        self.assertFalse((self.home / '.config/1bite').exists())
+
     def test_vim_template_loads_core_defaults(self):
         executable = shutil.which('vim')
         if not executable:

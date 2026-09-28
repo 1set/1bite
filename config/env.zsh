@@ -7,7 +7,10 @@ for setup_brew in /opt/homebrew/bin/brew /usr/local/bin/brew; do
   fi
 done
 unset setup_brew
-path=("$HOME/.local/bin" /Applications/Docker.app/Contents/Resources/bin $path)
+path=("$HOME/.local/bin" $path)
+setup_docker_bin=/Applications/Docker.app/Contents/Resources/bin
+[[ -x "$setup_docker_bin/docker" ]] && path+=("$setup_docker_bin")
+unset setup_docker_bin
 
 # Produce portable x86-64 Linux images by default on Apple Silicon. A project
 # or one-off command can set a different platform before loading this file.

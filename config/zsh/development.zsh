@@ -1,16 +1,18 @@
 # Managed by 1bite: development. Personal overrides belong after the source in .zshrc.
 alias ll='ls -lah'
 alias g='git'
-alias cl='claude'
-alias clc='claude --continue'
-# Explicit opt-in shortcuts: skip Claude permission checks / Codex approvals and sandbox.
-alias cld='claude --dangerously-skip-permissions'
-alias cldc='claude --dangerously-skip-permissions --continue'
+if (( $+commands[claude] || $+functions[claude] )); then
+  alias cl='claude'
+  alias clc='claude --continue'
+  # Explicit opt-in shortcuts: skip Claude permission checks.
+  alias cld='claude --dangerously-skip-permissions'
+  alias cldc='claude --dangerously-skip-permissions --continue'
+fi
 alias cx='codex'
 alias cxc='codex resume --last'
+# Explicit opt-in shortcuts: skip Codex approvals and sandbox.
 alias cxd='codex --dangerously-bypass-approvals-and-sandbox'
 alias cxdc='codex resume --last --dangerously-bypass-approvals-and-sandbox'
-alias dc='docker compose'
 
 # Portable local shortcuts; these override colliding Oh My Zsh aliases.
 
@@ -75,24 +77,27 @@ alias gmg='go mod graph'
 alias gmc='go clean --modcache'
 
 # Docker; d stays the directory stack function defined below.
-alias dk=docker
-alias dkc='docker container'
-alias dkcm='docker compose'
-alias dexec='docker exec -it'
-alias di='docker images'
-alias dimg='docker images'
-alias dkimg='docker image ls'
-alias dklg='docker logs -f'
-alias dkls='docker ps -a'
-alias dkps='docker ps -a'
-alias dkrm='docker rm -f'
-alias dps='docker ps'
-alias dpsa='docker ps -a'
-alias drmi='docker rmi'
-alias dks='docker service'
-alias dksm='docker swarm'
-alias dkst='docker stack'
-alias dkstat='docker system df'
+if (( $+commands[docker] || $+functions[docker] )); then
+  alias dc='docker compose'
+  alias dk=docker
+  alias dkc='docker container'
+  alias dkcm='docker compose'
+  alias dexec='docker exec -it'
+  alias di='docker images'
+  alias dimg='docker images'
+  alias dkimg='docker image ls'
+  alias dklg='docker logs -f'
+  alias dkls='docker ps -a'
+  alias dkps='docker ps -a'
+  alias dkrm='docker rm -f'
+  alias dps='docker ps'
+  alias dpsa='docker ps -a'
+  alias drmi='docker rmi'
+  alias dks='docker service'
+  alias dksm='docker swarm'
+  alias dkst='docker stack'
+  alias dkstat='docker system df'
+fi
 
 # Disk
 alias df='df -h'
@@ -100,6 +105,6 @@ alias df='df -h'
 # Multi-command shortcuts stop immediately if an earlier command fails.
 unalias gpre gps1 mkcd mcd d cdf o dl mktgz mkzip tfind ff jv jp jsonview pcat \
   sha1 sha224 sha256 sha384 sha512 sha512224 sha512256 gci gcia git_corb \
-  git_ignore git_readme tn tad to tkss tmuxconf tds cn gcv dkclear fingerprint \
+  git_ignore git_readme tn tad to tkss tmuxconf tds cn gcv fingerprint \
   ffmpeg2wav ffmpeg2pcm video2wav pcm2wav heic2jpg png2jpg webp2png svg2png \
   transpng img_trans img_pure_jpg img_pure_png new_bash 2>/dev/null || true

@@ -61,9 +61,12 @@ function tds {
 }
 
 # Docker cleanup
-function dkclear {
-  docker system prune -f
-}
+if (( $+commands[docker] || $+functions[docker] )); then
+  unalias dkclear 2>/dev/null || true
+  function dkclear {
+    docker system prune -f
+  }
+fi
 
 # Misc
 alias reload='. ~/.zshrc'

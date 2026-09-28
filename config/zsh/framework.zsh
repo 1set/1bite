@@ -9,7 +9,11 @@ if (( ! $+functions[omz] )) && [[ -r "${ZSH:-$HOME/.oh-my-zsh}/oh-my-zsh.sh" ]];
       ZSH_THEME=robbyrussell
     fi
   fi
-  (( ${+plugins} )) || plugins=(git macos vscode web-search extract docker tmux)
+  if (( ! ${+plugins} )); then
+    plugins=(git macos vscode web-search extract)
+    (( $+commands[docker] )) && plugins+=(docker)
+    plugins+=(tmux)
+  fi
   zstyle ':omz:update' mode disabled
   source "$ZSH/oh-my-zsh.sh"
 fi
