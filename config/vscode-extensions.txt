@@ -1,0 +1,8 @@
+golang.go
+ms-python.python
+charliermarsh.ruff
+dbaeumer.vscode-eslint
+esbenp.prettier-vscode
+redhat.vscode-yaml
+timonwong.shellcheck
+ms-vscode.sublime-keybindings

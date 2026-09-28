@@ -1,0 +1,4 @@
+# Use the current official model and authentication defaults.
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+web_search = "cached"

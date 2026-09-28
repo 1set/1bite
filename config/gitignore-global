@@ -1,0 +1,14 @@
+# macOS and Windows metadata
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Local logs and generated coverage reports
+*.log
+coverage.out
+coverage.txt
+coverage.html

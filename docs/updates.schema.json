@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "One Bite maintenance report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "script_version",
+    "checked_at",
+    "complete",
+    "attention_required",
+    "summary",
+    "items",
+    "issues"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "script_version": {
+      "type": "string"
+    },
+    "checked_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "complete": {
+      "type": "boolean"
+    },
+    "attention_required": {
+      "type": "boolean"
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current",
+        "update_available",
+        "ahead",
+        "missing",
+        "repair_needed",
+        "different",
+        "preserved",
+        "manual",
+        "unknown"
+      ],
+      "properties": {
+        "current": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "update_available": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ahead": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "repair_needed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "different": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "preserved": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "manual": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unknown": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "component",
+          "installed",
+          "latest",
+          "manager",
+          "status",
+          "next_action",
+          "note"
+        ],
+        "properties": {
+          "component": {
+            "type": "string"
+          },
+          "installed": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "latest": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "manager": {
+            "enum": [
+              "unknown",
+              "homebrew",
+              "original",
+              "native",
+              "npm",
+              "vscode",
+              "git",
+              "configuration",
+              "system"
+            ]
+          },
+          "status": {
+            "enum": [
+              "current",
+              "update_available",
+              "ahead",
+              "missing",
+              "repair_needed",
+              "different",
+              "preserved",
+              "manual",
+              "unknown"
+            ]
+          },
+          "next_action": {
+            "enum": [
+              "none",
+              "setup",
+              "update",
+              "original_updater",
+              "review"
+            ]
+          },
+          "note": {
+            "type": "string"
+          },
+          "requires_vscode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "component",
+          "reason"
+        ],
+        "properties": {
+          "component": {
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "query_failed",
+              "catalog_unavailable",
+              "catalog_version_missing",
+              "undetermined"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

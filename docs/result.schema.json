@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "One Bite session result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "exit_code",
+    "mode",
+    "update",
+    "last_step",
+    "script_version",
+    "started_at",
+    "finished_at",
+    "completed_steps",
+    "total_steps"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "status": {
+      "enum": [
+        "success",
+        "failed"
+      ]
+    },
+    "exit_code": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "mode": {
+      "enum": [
+        "install",
+        "configure-only",
+        "verify",
+        "diagnose",
+        "docker-smoke",
+        "check-updates"
+      ]
+    },
+    "update": {
+      "type": "boolean"
+    },
+    "last_step": {
+      "type": "string"
+    },
+    "script_version": {
+      "type": "string"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finished_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_steps": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "total_steps": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "desktop_mode": {
+      "enum": [
+        "download",
+        "managed"
+      ]
+    },
+    "manual_steps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "with_claude": {
+      "type": "boolean",
+      "description": "Whether Claude Desktop and Claude Code CLI are selected for this run."
+    }
+  }
+}

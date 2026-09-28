@@ -1,0 +1,32 @@
+name: One Bite quality
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Repository quality gate
+    runs-on: macos-15
+    timeout-minutes: 20
+    env:
+      QUALITY_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+    steps:
+      - name: Check out the submitted revision
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Install static-analysis tools
+        run: brew install actionlint ripgrep shellcheck shfmt
+      - name: Run the canonical quality harness
+        run: ./scripts/quality.sh

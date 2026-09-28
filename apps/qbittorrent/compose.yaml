@@ -1,0 +1,33 @@
+services:
+  qbittorrent:
+    image: ${QBT_IMAGE:?Run qbt.sh instead}
+    platform: ${QBT_PLATFORM:?}
+    restart: unless-stopped
+    stop_grace_period: 60s
+    environment:
+      PUID: ${QBT_UID:?}
+      PGID: ${QBT_GID:?}
+      TZ: ${QBT_TIMEZONE:?}
+      UMASK: '022'
+      WEBUI_PORT: ${QBT_WEB_PORT:?}
+      TORRENTING_PORT: ${QBT_BT_PORT:?}
+    ports:
+      - '${QBT_BIND:?}:${QBT_WEB_PORT}:${QBT_WEB_PORT}/tcp'
+      - '${QBT_BT_PORT}:${QBT_BT_PORT}/tcp'
+      - '${QBT_BT_PORT}:${QBT_BT_PORT}/udp'
+    volumes:
+      - type: bind
+        source: ${QBT_CONFIG:?}
+        target: /config
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${QBT_DOWNLOADS:?}
+        target: /downloads
+        bind:
+          create_host_path: false
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'

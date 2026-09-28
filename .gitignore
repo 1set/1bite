@@ -1,0 +1,13 @@
+.DS_Store
+__pycache__/
+dist/
+local-config/
+.env
+*.log
+.env.*
+logs/
+state/
+*.pem
+*.key
+**/auth.json
+**/*.backup-*

@@ -1,0 +1,7 @@
+# Public transport policy; credentials and proxy settings do not belong here.
+http1.1
+connect-timeout = 20
+max-time = 1800
+speed-limit = 1
+speed-time = 60
+retry-max-time = 1800
