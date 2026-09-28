@@ -80,6 +80,10 @@
     "with_claude": {
       "type": "boolean",
       "description": "Whether Claude Desktop and Claude Code CLI are selected for this run."
+    },
+    "with_docker": {
+      "type": "boolean",
+      "description": "Whether Docker Desktop is selected for this run."
     }
   }
 }

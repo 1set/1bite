@@ -16,6 +16,7 @@ def output(*args):
 
 def inventory():
     with_claude = os.environ.get('ONE_BITE_WITH_CLAUDE') == 'true'
+    with_docker = os.environ.get('ONE_BITE_WITH_DOCKER') == 'true'
     packages = (ROOT / 'config/formulae.txt').read_text().split()
     references = [output('/bin/bash', '-c', 'source "$1"; installed_formula_ref "$2"',
                          'inventory', str(ROOT / '1bite'), name) if '/' in name else 'homebrew/core/' + name
@@ -27,6 +28,8 @@ def inventory():
     allow_prepared = os.environ.get('ONE_BITE_ALLOW_PREPARED_DESKTOPS') == '1'
     for line in (ROOT / 'config/casks.tsv').read_text().splitlines():
         token, app = line.split('\t')
+        if token == 'docker-desktop' and not with_docker:
+            continue
         if token == 'claude-desktop' and not with_claude:
             continue
         path = output('/bin/bash', '-c', 'source "$1"; app_path "$2"',
@@ -44,6 +47,8 @@ def inventory():
     tools = {}
     for name in ('claude', 'codex', 'kiro-cli', 'docker'):
         if name == 'claude' and not with_claude:
+            continue
+        if name == 'docker' and not with_docker:
             continue
         try:
             tools[name] = output(name, '--version').splitlines()[0]
@@ -76,7 +81,7 @@ def inventory():
         revision = 'archive'
     return {'schema_version': 1, 'script_version': (ROOT / 'VERSION').read_text().strip(),
             'revision': revision, 'formulae': formulae, 'applications': apps, 'tools': tools,
-            'pending_applications': pending, 'with_claude': with_claude,
+            'pending_applications': pending, 'with_claude': with_claude, 'with_docker': with_docker,
             'font_casks': font_casks,
             'vscode_extensions': extensions, 'ohmyzsh_revision': omz_revision,
             'powerlevel10k_revision': p10k_revision,

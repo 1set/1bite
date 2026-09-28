@@ -5,6 +5,7 @@ import http.server
 import json
 import os
 from pathlib import Path
+import socket
 import subprocess
 import shlex
 import shutil
@@ -609,6 +610,7 @@ class InstallerTests(unittest.TestCase):
     def test_complete_package_iteration_survives_stdin_consumers(self):
         result = self.run_shell("""
 WITH_CLAUDE=true
+WITH_DOCKER=true
 ensure_formula() { cat >/dev/null; echo "CHECK formula:$1"; }
 ensure_cask() { cat >/dev/null; echo "CHECK cask:$1"; }
 ensure_font_cask() { cat >/dev/null; echo "CHECK font:$1"; }
@@ -773,6 +775,76 @@ echo "ACTION $STEP_ACTION; MANUAL $MANUAL_STEPS"
                 self.assertIn('desktop.py chatgpt', result.stderr)
                 self.assertIn('ACTION prepared; MANUAL  chatgpt', result.stdout)
 
+    def test_manual_desktop_checks_are_independent(self):
+        result = self.run_shell(r'''
+DESKTOP_MODE=download
+app_healthy() { [[ "$1" == 'Google Chrome.app' ]]; }
+brew() { echo WRONG; return 91; }
+python3() { echo "DOWNLOAD $*" >&2; echo prepared; }
+ensure_cask google-chrome 'Google Chrome.app'
+echo "CHROME $STEP_ACTION; MANUAL $MANUAL_STEPS"
+ensure_cask chatgpt ChatGPT.app
+echo "CHATGPT $STEP_ACTION; MANUAL $MANUAL_STEPS"
+''')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn('WRONG', result.stdout)
+        self.assertNotIn('desktop.py google-chrome', result.stderr)
+        self.assertIn('CHROME preserved; MANUAL ', result.stdout)
+        self.assertIn('desktop.py chatgpt', result.stderr)
+        self.assertIn('CHATGPT prepared; MANUAL  chatgpt', result.stdout)
+
+    def test_input_method_checks_are_independent_and_update_is_explicit(self):
+        for doubao, sogou in (('true', 'false'), ('false', 'true')):
+            with self.subTest(doubao=doubao, sogou=sogou):
+                result = self.run_shell(f'DOUBAO={doubao}; SOGOU={sogou}; ' + r'''
+UPDATE=false
+input_method_healthy() {
+  if [[ "$1" == DoubaoIme.app ]]; then [[ "$DOUBAO" == true ]];
+  else [[ "$SOGOU" == true ]]; fi
+}
+python3() { echo "DOWNLOAD $*"; }
+prepare_doubao_input_installer
+echo "DOUBAO $STEP_ACTION; MANUAL $MANUAL_STEPS"
+prepare_sogou_installer
+echo "SOGOU $STEP_ACTION; MANUAL $MANUAL_STEPS"
+''')
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual('prepare-doubao.py' in result.stdout, doubao == 'false')
+                self.assertEqual('prepare-sogou.py' in result.stdout, sogou == 'false')
+                self.assertEqual('doubao-input-installer' in result.stdout, doubao == 'false')
+                self.assertEqual('sogou-installer' in result.stdout, sogou == 'false')
+
+        result = self.run_shell(r'''
+UPDATE=true
+input_method_healthy() { return 0; }
+python3() { echo "DOWNLOAD $*"; }
+prepare_doubao_input_installer
+prepare_sogou_installer
+echo "MANUAL $MANUAL_STEPS"
+''')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('prepare-doubao.py', result.stdout)
+        self.assertIn('prepare-sogou.py', result.stdout)
+        self.assertIn('MANUAL  doubao-input-installer sogou-installer', result.stdout)
+
+    def test_input_method_health_checks_expected_locations_and_identity(self):
+        result = self.run_shell(r'''
+bundle_healthy() {
+  [[ "$1" == "$HOME/Library/Input Methods/DoubaoIme.app" || "$1" == '/Library/Input Methods/SogouInput.app' ]]
+}
+bundle_identifier() {
+  case "$1" in
+    *DoubaoIme.app) echo com.bytedance.inputmethod.doubaoime ;;
+    *SogouInput.app) echo wrong.bundle ;;
+  esac
+}
+input_method_path DoubaoIme.app com.bytedance.inputmethod.doubaoime
+input_method_healthy SogouInput.app com.sogou.inputmethod.sogou || echo SOGOU-MISSING
+''')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.splitlines(),
+                         [str(Path.home() / 'Library/Input Methods/DoubaoIme.app'), 'SOGOU-MISSING'])
+
     def test_default_kiro_uses_vendor_installer_without_managed_hooks(self):
         result = self.run_shell("""
 DESKTOP_MODE=download
@@ -813,14 +885,21 @@ echo "MANUAL $MANUAL_STEPS"
             self.assertIn('Preserving', result.stdout)
             self.assertNotIn('/private/custom.curlrc', result.stdout)
 
-    def test_real_curl_policy_downloads_and_aborts_stalled_transfers(self):
+    def test_real_curl_policy_retries_dropped_and_aborts_stalled_transfers(self):
         release = threading.Event()
 
         class Handler(http.server.BaseHTTPRequestHandler):
+            reset_attempts = 0
+
             def log_message(self, *args):
                 pass
 
             def do_GET(self):
+                if self.path == '/reset' and Handler.reset_attempts == 0:
+                    Handler.reset_attempts += 1
+                    self.connection.shutdown(socket.SHUT_RDWR)
+                    self.connection.close()
+                    return
                 self.send_response(200)
                 self.send_header('Content-Length', '2')
                 self.end_headers()
@@ -840,6 +919,11 @@ echo "MANUAL $MANUAL_STEPS"
             healthy = subprocess.run([*base, url + '/ok'], capture_output=True, timeout=5)
             self.assertEqual(healthy.returncode, 0, healthy.stderr)
             self.assertEqual(healthy.stdout, b'OK')
+            retried = subprocess.run([*base[:-2], '--retry', '1', '--retry-delay', '0', url + '/reset'],
+                                     capture_output=True, timeout=5)
+            self.assertEqual(retried.returncode, 0, retried.stderr)
+            self.assertEqual(retried.stdout, b'OK')
+            self.assertEqual(Handler.reset_attempts, 1)
             # Shorten the public policy's 60-second stall interval for the test.
             stalled = subprocess.run([*base, '--speed-time', '1', url + '/stall'],
                                      capture_output=True, timeout=5)
@@ -1167,7 +1251,7 @@ activate_paths() { :; }
 check_install_target() { :; }
 network_check() { :; }
 bootstrap() { :; }
-ensure_formula() { :; }
+ensure_formula() { echo "FORMULA $1"; }
 ensure_cask() { :; }
 ensure_font_cask() { :; }
 ensure_ohmyzsh() { :; }
@@ -1188,23 +1272,34 @@ echo "TOTAL $COMPLETED_STEPS $STEP_TOTAL"
         default_count = (12 + len((ROOT / 'config/formulae.txt').read_text().split())
                          + len((ROOT / 'config/casks.tsv').read_text().splitlines())
                          + len((ROOT / 'config/font-casks.tsv').read_text().splitlines())
-                         + len((ROOT / 'config/vscode-extensions.txt').read_text().split()) - 2)
+                         + len((ROOT / 'config/vscode-extensions.txt').read_text().split()) - 3)
         for enabled in ('false', 'true'):
             for claude in ('false', 'true'):
-                result = self.run_shell(f'WITH_SOGOU={enabled}; WITH_CLAUDE={claude}; ' + script)
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertLess(result.stdout.index('CONFIGURED'), result.stdout.index('AGENT codex'))
-                self.assertEqual('AGENT claude' in result.stdout, claude == 'true')
-                self.assertEqual('app:claude-desktop' in result.stdout, claude == 'true')
-                if claude == 'true':
-                    self.assertLess(result.stdout.index('CONFIGURED'), result.stdout.index('AGENT claude'))
-                count = default_count + 2 * (claude == 'true') + (enabled == 'true')
-                self.assertIn(f'TOTAL {count} {count}', result.stdout)
-                self.assertGreater(result.stdout.index('DOUBAO-PREPARED'), result.stdout.index('VERIFIED'))
-                if enabled == 'true':
-                    self.assertGreater(result.stdout.index('SOGOU-PREPARED'), result.stdout.index('DOUBAO-PREPARED'))
-                else:
-                    self.assertNotIn('SOGOU-PREPARED', result.stdout)
+                for docker in ('false', 'true'):
+                    result = self.run_shell(
+                        f'WITH_SOGOU={enabled}; WITH_CLAUDE={claude}; WITH_DOCKER={docker}; ' + script)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertLess(result.stdout.index('CONFIGURED'), result.stdout.index('AGENT codex'))
+                    self.assertEqual('AGENT claude' in result.stdout, claude == 'true')
+                    self.assertEqual('app:claude-desktop' in result.stdout, claude == 'true')
+                    self.assertEqual('app:docker-desktop' in result.stdout, docker == 'true')
+                    self.assertEqual(result.stdout.count('FORMULA python\n'), 1)
+                    self.assertLess(result.stdout.index('FORMULA python'),
+                                    result.stdout.index('DOUBAO-PREPARED'))
+                    self.assertLess(result.stdout.index('DOUBAO-PREPARED'),
+                                    result.stdout.index('FORMULA git'))
+                    if claude == 'true':
+                        self.assertLess(result.stdout.index('CONFIGURED'), result.stdout.index('AGENT claude'))
+                    count = (default_count + 2 * (claude == 'true') + (docker == 'true')
+                             + (enabled == 'true'))
+                    self.assertIn(f'TOTAL {count} {count}', result.stdout)
+                    self.assertLess(result.stdout.index('DOUBAO-PREPARED'), result.stdout.index('VERIFIED'))
+                    if enabled == 'true':
+                        self.assertLess(result.stdout.index('DOUBAO-PREPARED'),
+                                        result.stdout.index('SOGOU-PREPARED'))
+                        self.assertLess(result.stdout.index('SOGOU-PREPARED'), result.stdout.index('FORMULA git'))
+                    else:
+                        self.assertNotIn('SOGOU-PREPARED', result.stdout)
 
     def test_claude_plan_requires_flag_even_with_managed_update_or_internal_environment(self):
         for flags in ('', '--managed-desktop', '--update', '--managed-desktop --update'):
@@ -1214,6 +1309,16 @@ echo "TOTAL $COMPLETED_STEPS $STEP_TOTAL"
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual('claude-desktop\t' in result.stdout, selected)
                 self.assertEqual('anthropic\t' in result.stdout, selected)
+
+    def test_docker_plan_requires_flag_even_with_managed_update_or_internal_environment(self):
+        for flags in ('', '--managed-desktop', '--update', '--managed-desktop --update'):
+            for selected in (False, True):
+                result = self.run_shell('main --plan ' + flags + (' --with-docker' if selected else ''),
+                                        env={'ONE_BITE_WITH_DOCKER': 'true'})
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual('docker-desktop\t' in result.stdout, selected)
+                self.assertEqual('docker-desktop-download\t' in result.stdout, selected)
+                self.assertEqual('ghcr\t' in result.stdout, selected)
 
     def test_chrome_location_selection_and_no_duplicate_installation(self):
         for system, user in [('true', 'false'), ('false', 'true'), ('true', 'true'), ('false', 'false')]:
@@ -1316,6 +1421,9 @@ ensure_cask kiro Kiro.app
             self.assertEqual(result.returncode, 0)
             self.assertIn('https://chatgpt.com/codex/install.sh', result.stdout)
             self.assertIn('prepare the official Doubao Input Method ZIP', result.stdout)
+            self.assertIn('Docker Desktop requires --with-docker', result.stdout)
+            self.assertNotIn('docker-desktop\t', result.stdout)
+            self.assertNotIn('ghcr\t', result.stdout)
             self.assertNotIn('prepare official Sogou ZIP', result.stdout)
             self.assertFalse(target.exists())
         for args in (['--unknown'], ['--plan', '--verify'], ['--config-dir'], ['--log-dir'], ['--diagnose', '--update'],

@@ -8,7 +8,7 @@ The default mode keeps vendor installation and first-launch flows for desktop ap
 | ChatGPT / Codex desktop app | Official DMG | Validate signature, architecture, and version, then place the app | Uses the current OpenAI desktop distribution and update feed; checked independently from Codex CLI and recognizes the older Codex.app name. |
 | Kiro IDE | Official stable arm64 DMG | Validate and place the official app | Default mode leaves first launch and IDE onboarding to the user. |
 | Claude Desktop | Disabled; `--with-claude` prepares the official DMG | Still requires `--with-claude`; validates and places Claude.app | The desktop app and Claude Code CLI have separate sign-in flows. `--update` refreshes the package. |
-| Docker Desktop | Official arm64 DMG | Official cask | First launch, privileged components, and engine initialization use the official GUI. Check the engine separately with `--docker-smoke`. |
+| Docker Desktop | Disabled; `--with-docker` prepares the official arm64 DMG | Still requires `--with-docker`; official cask | Review the current vendor terms before selecting it. First launch, privileged components, and engine initialization use the official GUI. Check the engine separately with `--docker-smoke`. |
 | iTerm2 | Official cask | Same | The vendor distributes a ZIP; the cask places the app. One Bite updates only its own uniquely identified Dynamic Profile and preserves unrelated profiles. |
 | VS Code | Official cask | Same | The cask provides the architecture-specific app and the `code` command required for extension setup. |
 | Obsidian | Official cask | Same | Installs Obsidian.app. One Bite adds `ob` to open existing vaults and `obn` to create an independent starter; existing vaults are never changed. |
@@ -28,7 +28,9 @@ The default mode keeps vendor installation and first-launch flows for desktop ap
 
 Default mode installs command-line tools, iTerm2, VS Code, the selected AI CLIs, prepares desktop DMGs, and prepares the Doubao Input Method ZIP. Each receipt records the filename, source, version metadata, and SHA-256. A cached package is reused only after its digest is checked. The installer never opens a downloaded package, replaces the matching app in default desktop mode, or enables an input source.
 
-`prepared` means the package is complete; it does not mean the application is installed. `result.json` records `desktop_mode`, `with_claude`, and `manual_steps`. `desktop-installers.json` records packages prepared during that run. A successful default run means automated work and package preparation succeeded. Missing applications remain `null` in inventory and appear under `pending_applications`.
+`prepared` means the package is complete; it does not mean the application is installed. `result.json` records `desktop_mode`, `with_docker`, `with_claude`, and `manual_steps`. `desktop-installers.json` records packages prepared during that run. A successful default run means automated work and package preparation succeeded. Missing applications remain `null` in inventory and appear under `pending_applications`.
+
+Docker Desktop is enabled with `--with-docker`. Without that flag it is not downloaded, checked, updated, or added to inventory and manual steps, even if Docker Desktop is already present. Repeat the flag for reruns, verification, and maintenance. `--managed-desktop` never enables it implicitly. The Docker-compatible shell aliases and `DOCKER_DEFAULT_PLATFORM` setting remain available for another local engine or a remote Docker context.
 
 Claude Desktop and Claude Code are enabled together with `--with-claude`. Without that flag they are not downloaded, configured, checked, updated, or removed. Repeat the same flag with rerun, verify, configure, update, and update-check commands. `--managed-desktop` never enables Claude implicitly.
 
@@ -42,7 +44,7 @@ The input-method section is separate from DMG instructions. It explains archive 
 
 - Normal reruns preserve healthy applications and CLIs and reuse verified packages.
 - `--update` updates managed development tools and official CLIs and refreshes current desktop DMGs. The user still runs desktop installers or vendor updaters in default mode.
-- `--managed-desktop --update` automatically updates AI apps recorded as managed. Chrome, Docker, iTerm2, and VS Code keep their cask lifecycle. Healthy apps from another source keep their original updater.
+- `--managed-desktop --update` automatically updates AI apps recorded as managed. Chrome, iTerm2, and VS Code keep their cask lifecycle; selected Docker Desktop uses its cask lifecycle only with `--with-docker`. Healthy apps from another source keep their original updater.
 - Default Kiro CLI relies on the vendor app for integration and updates. A damaged installation returns to the official installer instead of being silently removed.
 - Powerlevel10k updates only on `--update`, only for a clean official checkout. Custom origins, symlinks, and personal `~/.p10k.zsh` stay under their existing owner.
 - Managed fonts update through Homebrew. External font files stay with their original source.

@@ -15,6 +15,7 @@ done 3<"$ROOT/config/formulae.txt"
 
 while IFS=$'\t' read -r -u 3 package app; do
   [[ -n "$package" ]] || continue
+  if [[ "$package" == docker-desktop && "$WITH_DOCKER" != true ]]; then continue; fi
   if [[ "$package" == claude-desktop && "$WITH_CLAUDE" != true ]]; then continue; fi
   if [[ "${ONE_BITE_ALLOW_PREPARED_DESKTOPS:-}" == 1 ]] && manual_desktop "$package" && ! app_healthy "$app"; then
     python3 "$ROOT/scripts/desktop.py" "$package" --verify-prepared
@@ -61,7 +62,7 @@ if [[ "$DESKTOP_MODE" == managed ]]; then
   python3 "$ROOT/scripts/kiro-shell.py" --verify --app "$(app_path 'Kiro CLI.app')"
   zsh -lic '(( $+functions[fig_preexec] && $+functions[fig_precmd] ))'
 fi
-if app_healthy Docker.app; then
+if [[ "$WITH_DOCKER" == true ]] && app_healthy Docker.app; then
   docker --version
   /Applications/Docker.app/Contents/Resources/cli-plugins/docker-compose version
   /Applications/Docker.app/Contents/Resources/cli-plugins/docker-buildx version
@@ -84,4 +85,4 @@ fi'
 python3 "$ROOT/scripts/runtime-smoke.py"
 python3 "$ROOT/scripts/inventory.py"
 echo 'Selected installation/preparation scope verified. Manual desktop installs and first launch remain separate.'
-echo 'Docker engine readiness is checked separately by --docker-smoke.'
+if [[ "$WITH_DOCKER" == true ]]; then echo 'Docker engine readiness is checked separately by --docker-smoke.'; fi

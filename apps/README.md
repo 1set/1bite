@@ -1,6 +1,6 @@
 # Optional Docker apps
 
-This directory is for useful services that can run locally with Docker. It is separate from the main One Bite installer: `./1bite` never starts, updates, or removes these apps. Each implemented app has its own launcher, private state directory, update procedure, recovery notes, and smoke test.
+This directory is for useful services that can run locally with a Docker-compatible engine. It is separate from the main One Bite installer: `./1bite` never starts, updates, or removes these apps. Docker Desktop itself is optional and requires `./1bite --with-docker`; users may instead provide another compatible engine. Each implemented app has its own launcher, private state directory, update procedure, recovery notes, and smoke test.
 
 ## Ready to run
 

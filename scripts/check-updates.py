@@ -155,8 +155,9 @@ def gallery_versions(data):
 
 
 class Checker:
-    def __init__(self, root=ROOT, home=None, config_dir=None, with_claude=False):
+    def __init__(self, root=ROOT, home=None, config_dir=None, with_claude=False, with_docker=False):
         self.with_claude = with_claude
+        self.with_docker = with_docker
         self.root, self.home = root, home or Path.home()
         self.config_dir = config_dir or root / 'config'
         self.items, self.issues = [], []
@@ -191,7 +192,8 @@ class Checker:
     def packages(self):
         formulae = (self.root / 'config/formulae.txt').read_text().split()
         casks = [line.split('\t') for line in (self.root / 'config/casks.tsv').read_text().splitlines()
-                 if self.with_claude or not line.startswith('claude-desktop\t')]
+                 if (self.with_claude or not line.startswith('claude-desktop\t'))
+                 and (self.with_docker or not line.startswith('docker-desktop\t'))]
         fonts = [line.split('\t') for line in (self.root / 'config/font-casks.tsv').read_text().splitlines()]
         local = self.attempt('homebrew:inventory', lambda: json.loads(command('brew', 'info', '--json=v2', '--installed')))
         by_name, managed_casks = {}, {}
@@ -415,6 +417,8 @@ class Checker:
                     ['cli:claude', 'cli:codex', 'powerlevel10k'])
         if not self.with_claude:
             expected = [name for name in expected if name not in ('cask:claude-desktop', 'cli:claude', 'config:claude-settings.json')]
+        if not self.with_docker:
+            expected = [name for name in expected if name != 'cask:docker-desktop']
         present = {item['component'] for item in self.items}
         for component in expected:
             if component not in present:
@@ -447,9 +451,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config-dir', type=Path, default=ROOT / 'config')
     parser.add_argument('--with-claude', action='store_true', default=os.environ.get('ONE_BITE_WITH_CLAUDE') == 'true')
+    parser.add_argument('--with-docker', action='store_true', default=os.environ.get('ONE_BITE_WITH_DOCKER') == 'true')
     args = parser.parse_args()
     directory = Path(os.environ['RUN_DIR'])
-    report = Checker(config_dir=args.config_dir, with_claude=args.with_claude).run()
+    report = Checker(config_dir=args.config_dir, with_claude=args.with_claude, with_docker=args.with_docker).run()
     save(report, directory)
     print('Maintenance status:', json.dumps(report['summary']))
     print('Reports:', directory / 'updates.md', 'and updates.json')

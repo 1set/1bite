@@ -42,6 +42,7 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(report['completed_steps'], 1)
         self.assertEqual(report['total_steps'], 1)
         self.assertIs(report['update'], False)
+        self.assertIs(report['with_docker'], False)
         self.assertFalse((self.logs / 'install.lock').exists())
         for path in self.logs.rglob('*'):
             if path.is_file():
@@ -70,7 +71,7 @@ class SessionTests(unittest.TestCase):
             {'component': 'docker-desktop', 'filename': docker.name},
             {'component': 'claude-desktop', 'filename': unselected.name},
         ])
-        body = f'''DESKTOP_MODE=download; MANUAL_STEPS=" chatgpt docker-desktop";
+        body = f'''DESKTOP_MODE=download; WITH_DOCKER=true; MANUAL_STEPS=" chatgpt docker-desktop";
 execute_mode() {{
   STEP_TOTAL=1
   printf '%s\\n' {shlex.quote(receipts)} >"$RUN_DIR/desktop-installers.json"
@@ -80,6 +81,7 @@ execute_mode() {{
         self.assertEqual(result.returncode, 0, result.stderr)
         report = self.reports()[0]
         self.assertEqual(report['desktop_mode'], 'download')
+        self.assertIs(report['with_docker'], True)
         self.assertEqual(report['manual_steps'], ['chatgpt', 'docker-desktop'])
         self.assertIn('[MANUAL]', result.stdout)
         self.assertIn('you must still install them', result.stdout)
@@ -99,10 +101,41 @@ execute_mode() {{
         self.assertIn('grep -nF ".config/1bite" ~/.zshrc ~/.zprofile', guide)
         self.assertIn('do not replace the whole file', guide)
         self.assertIn('--verify', guide)
+        self.assertIn('--with-docker', guide)
+        self.assertIn('--docker-smoke', guide)
         self.assertNotIn('cannot locate the package', guide)
         self.assertNotIn(str(stale.resolve()), guide)
         self.assertNotIn(str(unselected.resolve()), guide)
         self.assertNotIn('Claude Desktop', guide)
+
+    def test_unselected_docker_receipt_is_not_reported(self):
+        home = self.root / 'home'
+        downloads = home / 'Downloads/1bite'
+        downloads.mkdir(parents=True)
+        docker = downloads / 'docker-desktop-latest.dmg'
+        doubao = downloads / 'doubao-input-method-latest.zip'
+        docker.write_bytes(b'docker dmg')
+        doubao.write_bytes(b'doubao zip')
+        receipts = json.dumps([
+            {'component': 'docker-desktop', 'filename': docker.name},
+            {'component': 'doubao-input-installer', 'filename': doubao.name},
+        ])
+        body = f'''DESKTOP_MODE=download; WITH_DOCKER=false; MANUAL_STEPS=" docker-desktop doubao-input-installer";
+execute_mode() {{
+  STEP_TOTAL=1
+  printf '%s\\n' {shlex.quote(receipts)} >"$RUN_DIR/desktop-installers.json"
+  step_run demo echo prepared
+}}'''
+        result = self.run_session(body, dict(os.environ, HOME=str(home)))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = self.reports()[0]
+        self.assertIs(report['with_docker'], False)
+        guide = next(self.logs.glob('*/manual-steps.txt')).read_text()
+        self.assertIn('Doubao Input Method', guide)
+        self.assertNotIn('Docker Desktop', guide)
+        self.assertNotIn(str(docker.resolve()), guide)
+        self.assertNotIn('--with-docker', guide)
+        self.assertNotIn('--docker-smoke', guide)
 
     def test_powerlevel10k_onboarding_is_specific_and_not_a_download(self):
         home = self.root / 'home'
@@ -147,6 +180,36 @@ execute_mode() {{
         self.assertIn('test both typing and voice input', guide)
         self.assertNotIn(str(stale_sogou.resolve()), guide)
         self.assertNotIn('Sogou Input Method', guide)
+
+    def test_prepared_doubao_remains_actionable_after_a_later_failure(self):
+        home = self.root / 'home'
+        downloads = home / 'Downloads/1bite'
+        downloads.mkdir(parents=True)
+        doubao = downloads / 'DoubaoInput-1.0.1-1000103-0123456789ab.zip'
+        doubao.write_bytes(b'doubao zip fixture')
+        receipt = {'filename': doubao.name}
+        body = f'''DESKTOP_MODE=download;
+prepare_doubao() {{
+  MANUAL_STEPS="$MANUAL_STEPS doubao-input-installer"
+  printf '%s\\n' {shlex.quote(json.dumps(receipt))} >"$RUN_DIR/doubao-input-installer.json"
+  STEP_ACTION=prepared
+}}
+execute_mode() {{
+  STEP_TOTAL=2
+  step_run doubao-input-installer prepare_doubao
+  step_run verification false
+}}'''
+        result = self.run_session(body, dict(os.environ, HOME=str(home)))
+        self.assertEqual(result.returncode, 1)
+        report = self.reports()[0]
+        self.assertEqual(report['manual_steps'], ['doubao-input-installer'])
+        self.assertEqual(report['last_step'], 'verification')
+        guide = next(self.logs.glob('*/manual-steps.txt')).read_text()
+        self.assertIn('This run did not finish', guide)
+        self.assertIn('1. Doubao Input Method', guide)
+        self.assertIn('Package: ' + str(doubao.resolve()), guide)
+        self.assertIn(shlex.join(['open', str(doubao.resolve())]), guide)
+        self.assertIn('fix the earlier error and rerun the original command', guide)
 
     def test_app_display_does_not_imply_homebrew_and_keeps_machine_ids(self):
         result = self.run_session('execute_mode() { step_run cask:claude-desktop true; }')
@@ -348,19 +411,24 @@ execute_mode() {
         self.assertEqual(process.returncode, 0)
         self.assertIn('PROMPT-WITHOUT-NEWLINE', next(self.logs.glob('*/run.log')).read_text())
 
-    def test_default_network_does_not_contact_claude(self):
+    def test_default_network_does_not_contact_unselected_services(self):
         result = self.run_session('''MODE=diagnose
-curl() { case "$*" in *claude*) return 99;; *) echo 200;; esac; }
+curl() { case "$*" in *claude*|*ghcr*) return 99;; *) echo 200;; esac; }
 execute_mode() { STEP_TOTAL=1; step_run network network_check; }
 ''')
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertNotIn('anthropic', next(self.logs.glob('*/network.tsv')).read_text())
-        self.assertIs(self.reports()[0]['with_claude'], False)
+        network = next(self.logs.glob('*/network.tsv')).read_text()
+        self.assertNotIn('anthropic', network)
+        self.assertNotIn('ghcr', network)
+        report = self.reports()[0]
+        self.assertIs(report['with_claude'], False)
+        self.assertIs(report['with_docker'], False)
 
     def test_network_statuses_and_diagnostics_failure(self):
         body = '''
 MODE=diagnose
 WITH_CLAUDE=true
+WITH_DOCKER=true
 curl() { case "$*" in *claude.ai*) echo 503;; *ghcr.io*) echo 401;; *) echo 200;; esac; }
 execute_mode() { STEP_TOTAL=1; step_run network network_check; }
 '''

@@ -1,6 +1,6 @@
 # Maintenance: check, update, verify
 
-Claude Desktop and Claude Code are outside the default maintenance selection. Include them explicitly with `./1bite --with-claude --check-updates` or `./1bite --with-claude --update`. An existing installation never enables them implicitly.
+Docker Desktop is outside the default maintenance selection. Include it explicitly with `./1bite --with-docker --check-updates` or `./1bite --with-docker --update` after reviewing the current vendor terms. Claude Desktop and Claude Code use the equivalent `--with-claude` commands. An existing installation never enables either optional group implicitly.
 
 A successful installation is a baseline, not proof that every component stays current. Maintenance separates version discovery, actual health checks, installer changes, and configuration drift. Keep the report from each run instead of using an older successful log as evidence for the current machine.
 
@@ -25,7 +25,7 @@ Exit status 0 from `--check-updates` means the check completed; it does not mean
 | Homebrew | Installed command version versus the official GitHub release | `brew update` refreshes Homebrew and metadata; it does not upgrade installed packages by itself |
 | Declared formulae | Installed versions versus the live Homebrew stable API, including revisions, aliases, and pins | `./1bite --update`; pinned, disabled, or deprecated packages require review |
 | Nerd Font casks | Installed cask versions plus declared regular-face files | Update managed casks; keep externally installed font files |
-| Non-AI desktop apps | Actual app bundle version versus the current cask | Default mode refreshes Chrome and Docker DMGs; managed casks update only in managed mode; external apps keep their updater |
+| Non-AI desktop apps | Actual selected app bundle version versus the current cask | Default mode refreshes Chrome, plus Docker only with `--with-docker`; managed casks update only in managed mode; external apps keep their updater |
 | AI apps and CLIs | Actual versions versus official stable metadata | Desktop DMGs in default mode, official CLI scripts, and managed app replacement only with `--managed-desktop --update` |
 | Eight VS Code extensions | Marketplace stable releases compatible with arm64 or universal packages | Official VS Code CLI chooses the release compatible with the installed editor |
 | Oh My Zsh and Powerlevel10k | Official origin SHA, local SHA, origin identity, and worktree cleanliness | Fast-forward only a clean official checkout; preserve personal files |
@@ -75,7 +75,7 @@ Kiro CLI hooks are managed by their dedicated installer and verifier, not by ove
 | --- | --- |
 | Weekly, before a new project, or after a failure | Run `--check-updates`; add `--diagnose` and `--verify` when behavior is abnormal |
 | Monthly or for a needed security fix | Save work, close affected apps, keep a pre-update report, run `--update`, and keep the post-update report |
-| After a major macOS, Docker, Kiro, or terminal change | Test Docker engine startup, terminal keys and completion, AI sign-in, and permission prompts on the Mac |
+| After a major macOS, selected container engine, Kiro, or terminal change | Test the selected engine, terminal keys and completion, AI sign-in, and permission prompts on the Mac |
 | After changing the installer or sources | Bump the patch version, update manifest and configuration fixtures, run build/test/format, then validate the same candidate in isolation |
 
 One Bite does not install a background auto-updater, grant permissions, remove pins, clear caches, or bulk-uninstall rollback versions. A failed update preserves completed work; fix the logged problem and rerun the same command. Reverting the One Bite Git checkout does not revert already installed software.

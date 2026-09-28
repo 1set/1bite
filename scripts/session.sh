@@ -155,6 +155,7 @@ finish_session() {
     printf ',"desktop_mode":'
     json_string "${DESKTOP_MODE:-download}"
     printf ',"with_claude":%s' "${WITH_CLAUDE:-false}"
+    printf ',"with_docker":%s' "${WITH_DOCKER:-false}"
     printf ',"manual_steps":['
     for component in ${MANUAL_STEPS:-}; do
       printf '%s' "$separator"
@@ -235,6 +236,7 @@ network_check() {
   printf 'component\thttp_status\ttransport_exit\n' >"$RUN_DIR/network.tsv"
   while IFS=$'\t' read -r -u 3 component kind url; do
     [[ "$kind" == connectivity ]] || continue
+    if [[ "$component" == ghcr && "${WITH_DOCKER:-false}" != true ]]; then continue; fi
     if [[ "$component" == anthropic && "${WITH_CLAUDE:-false}" != true ]]; then continue; fi
     transport=0
     code=$(curl --config "$ROOT/config/download.curlrc" --silent --output /dev/null --location --connect-timeout 8 --max-time 20 --write-out '%{http_code}' "$url") || transport=$?

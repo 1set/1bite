@@ -89,16 +89,34 @@ class MaintenanceTests(unittest.TestCase):
         name = url.rsplit('/', 1)[1].removesuffix('.json')
         return {'name': name, 'versions': {'stable': '1.0.0'}, 'revision': 0, 'version': '1.0.0'}
 
-    def check(self, fetch=None, text_fetch=None, command=None, with_claude=True):
+    def check(self, fetch=None, text_fetch=None, command=None, with_claude=True, with_docker=True):
         with patch.dict(os.environ, {}, clear=True), patch.object(maintenance, 'command', command or self.command), \
                 patch.object(maintenance, 'shell', self.shell), patch.object(maintenance, 'public_json', fetch or self.fetch), \
                 patch.object(maintenance, 'public_text', side_effect=text_fetch or (lambda url: '  version \"1.0.0\"\n' if url.endswith('.rb') else '../Formula/p/python@3.14.rb')), \
                 patch.object(maintenance.official_ai, 'release', return_value={'version': '1.0.0'}) as releases, \
                 patch.object(maintenance.shutil, 'which', side_effect=lambda name: str(self.home / '.local/bin' / name)):
-            report = maintenance.Checker(self.root, self.home, with_claude=with_claude).run()
+            report = maintenance.Checker(self.root, self.home, with_claude=with_claude,
+                                         with_docker=with_docker).run()
             if not with_claude:
                 self.assertFalse(any(call.args[0].startswith('claude') for call in releases.call_args_list))
             return report
+
+    def test_unselected_docker_is_not_queried_or_reported(self):
+        original_shell = self.shell
+        original_fetch = self.fetch
+
+        def selected_shell(function, *args):
+            self.assertNotIn('Docker.app', args)
+            return original_shell(function, *args)
+
+        def selected_fetch(url, payload=None):
+            self.assertNotIn('docker-desktop', url)
+            return original_fetch(url, payload)
+
+        self.shell = selected_shell
+        report = self.check(fetch=selected_fetch, with_docker=False)
+        self.assertTrue(report['complete'], report['issues'])
+        self.assertNotIn('cask:docker-desktop', {item['component'] for item in report['items']})
 
     def test_unselected_claude_is_not_queried_or_reported(self):
         original = self.shell

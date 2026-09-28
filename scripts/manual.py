@@ -48,10 +48,12 @@ def instructions(run_dir, config_dir, home=None, root=ROOT):
     directory = home / 'Downloads/1bite'
     complete = result.get('status') == 'success'
     claude = result.get('with_claude') is True
+    docker = result.get('with_docker') is True
     pending = list(dict.fromkeys(name for name in result.get('manual_steps', [])
                                 if name in (*APPS, 'doubao-input-installer', 'sogou-installer',
                                             'kiro-cli-onboarding', 'powerlevel10k-configure')
-                                and (name != 'claude-desktop' or claude)))
+                                and (name != 'claude-desktop' or claude)
+                                and (name != 'docker-desktop' or docker)))
     rows = read_json(run_dir / 'desktop-installers.json', [])
     packages = {row.get('component'): row for row in rows if isinstance(row, dict)} if isinstance(rows, list) else {}
     lines = []
@@ -116,7 +118,7 @@ def instructions(run_dir, config_dir, home=None, root=ROOT):
                       '  The wizard creates your personal ~/.p10k.zsh. Existing explicit themes stay unchanged until you switch them yourself.']
         if claude:
             lines += ['- Claude Code CLI: run claude in a new terminal and complete sign-in.']
-        if 'docker-desktop' not in downloads:
+        if docker and 'docker-desktop' not in downloads:
             lines += ['- Docker Desktop: run open -a Docker, complete first-run setup, and wait for the engine to start.']
     if complete or 'kiro-cli-onboarding' in pending:
         lines += ['- Kiro CLI: run kiro-cli launch in a new terminal and complete the vendor sign-in and shell integration.',
@@ -126,6 +128,8 @@ def instructions(run_dir, config_dir, home=None, root=ROOT):
         command = ['/bin/bash', str(root / '1bite'), '--verify']
         if claude:
             command.append('--with-claude')
+        if docker:
+            command.append('--with-docker')
         if result.get('desktop_mode') == 'managed':
             command.append('--managed-desktop')
         if config_dir.resolve() != (root / 'config').resolve():
@@ -139,10 +143,11 @@ def instructions(run_dir, config_dir, home=None, root=ROOT):
         confirmations += ['GUI sign-in', 'system permissions']
         lines += ['', '[CHECK] After installation and first launch, run this exact command in a new terminal:',
                   '  ' + shlex.join(command),
-                  'This checks actual installations; a downloaded DMG without an installed app still fails. Preserve any custom directory environment variables used during installation.',
-                  'After the Docker engine starts, check container execution separately:',
-                  '  ' + shlex.join(['/bin/bash', str(root / '1bite'), '--docker-smoke', '--log-dir', str(run_dir.parent)]),
-                  ', '.join(confirmations) + ' still require manual confirmation.']
+                  'This checks actual installations; a downloaded DMG without an installed app still fails. Preserve any custom directory environment variables used during installation.']
+        if docker:
+            lines += ['After the Docker engine starts, check container execution separately:',
+                      '  ' + shlex.join(['/bin/bash', str(root / '1bite'), '--docker-smoke', '--log-dir', str(run_dir.parent)])]
+        lines += [', '.join(confirmations) + ' still require manual confirmation.']
     return '\n'.join(lines).strip() + '\n' if lines else ''
 
 

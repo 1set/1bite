@@ -14,7 +14,7 @@
 | An externally managed app is damaged | Repair it with its original installer; One Bite does not delete unknown apps. |
 | Exit status 75 | Another process owns the session lock. Wait for it and do not delete `session.lock`. |
 | `result.json` is absent | The previous run did not finish normally. Read events and run logs, then rerun; do not count it as success. |
-| Docker engine is not running | Open Docker.app, complete first-run setup, wait for the engine, then run the smoke check. |
+| Selected Docker Desktop engine is not running | If you installed it with `--with-docker`, open Docker.app, complete first-run setup, wait for the engine, then run the smoke check. For another compatible engine, start it with its own controls. |
 | A Docker build selects the wrong architecture | New shells default `DOCKER_DEFAULT_PLATFORM=linux/amd64`. Override it for one command, for example `DOCKER_DEFAULT_PLATFORM=linux/arm64 docker build ...`, or set a project-specific value before loading One Bite's environment. |
 | iTerm2 reports duplicate Dynamic Profile GUIDs | Update One Bite and run `./1bite --configure-only`. The managed profile receives its current unique GUID while unrelated profile files are preserved. Reopen iTerm2 after the update. |
 | New iTerm2 windows still use another profile | Run `./1bite --configure-only`, quit and reopen iTerm2, and confirm **Profiles > One Bite** exists. One Bite makes it the default once; if you later selected another default, reruns preserve your choice. |

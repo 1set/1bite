@@ -4,4 +4,5 @@ connect-timeout = 20
 max-time = 1800
 speed-limit = 1
 speed-time = 60
+retry-all-errors
 retry-max-time = 1800
