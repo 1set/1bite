@@ -5,6 +5,9 @@ import argparse
 import json
 import os
 from pathlib import Path
+import plistlib
+import pwd
+import re
 import shutil
 import subprocess
 import tempfile
@@ -25,6 +28,10 @@ VIM_SOURCE_LINE = "if filereadable(expand('$HOME/.config/1bite/vimrc')) | execut
 VIM_SOURCE_LINES = (VIM_SOURCE_LINE,)
 PROFILE_PATH = Path('Library/Application Support/iTerm2/DynamicProfiles/1bite.json')
 PROFILE_BACKUP_PATH = PROFILE_PATH.parent.parent / '1bite-backups'
+ITERM_DEFAULT_STATE_PATH = Path('.config/1bite/iterm2-default.json')
+ITERM_PREFERENCES_PATH = Path('Library/Preferences/com.googlecode.iterm2.plist')
+ITERM_DEFAULT_KEY = 'Default Bookmark Guid'
+ITERM_GUID_PATTERN = re.compile(r'[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}')
 VSCODE_PATH = Path('Library/Application Support/Code/User/settings.json')
 KIRO_PATH = Path('.kiro/settings/permissions.yaml')
 GIT_IGNORE_PATH = Path('.config/1bite/gitignore-global')
@@ -145,6 +152,116 @@ def validate(claude, codex, profile):
     item = data['Profiles'][0]
     if not item.get('Guid') or not item.get('Name') or not item.get('Keyboard Map'):
         raise ValueError('iTerm2 profile needs Guid, Name and Keyboard Map')
+    if not ITERM_GUID_PATTERN.fullmatch(item['Guid']):
+        raise ValueError('iTerm2 profile Guid must be a UUID')
+    if 'Default Bookmark' in item:
+        raise ValueError('Dynamic Profiles cannot select the iTerm2 default with Default Bookmark')
+
+
+def live_iterm_preferences(home):
+    return (Path('/usr/bin/defaults').is_file()
+            and home.resolve() == Path(pwd.getpwuid(os.getuid()).pw_dir).resolve())
+
+
+def read_iterm_default(home):
+    preference = home / ITERM_PREFERENCES_PATH
+    if preference.is_symlink() or (preference.exists() and not preference.is_file()):
+        raise ValueError(f'Refusing unsafe iTerm2 preferences file: {preference}')
+    if preference.exists() and not os.access(preference, os.R_OK | os.W_OK):
+        raise ValueError(f'iTerm2 preferences are not readable and writable: {preference}')
+    defaults = Path('/usr/bin/defaults')
+    if live_iterm_preferences(home):
+        result = subprocess.run([defaults, 'read', 'com.googlecode.iterm2', ITERM_DEFAULT_KEY],
+                                text=True, capture_output=True)
+        return result.stdout.strip() if result.returncode == 0 else None
+    if not preference.exists():
+        return None
+    try:
+        value = plistlib.loads(preference.read_bytes()).get(ITERM_DEFAULT_KEY)
+    except (OSError, plistlib.InvalidFileException) as error:
+        raise ValueError(f'Cannot read iTerm2 preferences: {preference}') from error
+    return value if isinstance(value, str) and value else None
+
+
+def write_iterm_default(home, guid):
+    preference = home / ITERM_PREFERENCES_PATH
+    preference.parent.mkdir(parents=True, exist_ok=True)
+    defaults = Path('/usr/bin/defaults')
+    if live_iterm_preferences(home):
+        subprocess.run([defaults, 'write', 'com.googlecode.iterm2',
+                        ITERM_DEFAULT_KEY, '-string', guid], check=True)
+        return
+    data = {}
+    if preference.exists():
+        try:
+            data = plistlib.loads(preference.read_bytes())
+        except (OSError, plistlib.InvalidFileException) as error:
+            raise ValueError(f'Cannot read iTerm2 preferences: {preference}') from error
+    data[ITERM_DEFAULT_KEY] = guid
+    write(preference, plistlib.dumps(data))
+
+
+def configure_iterm_default(home, guid):
+    """Own the default until the user explicitly selects a different profile."""
+    state_path = home / ITERM_DEFAULT_STATE_PATH
+    if state_path.is_symlink():
+        raise ValueError(f'Refusing to replace symlink: {state_path}')
+    current = read_iterm_default(home)
+    if current is not None and not ITERM_GUID_PATTERN.fullmatch(current):
+        raise ValueError('Current iTerm2 default profile Guid is invalid; review iTerm2 preferences')
+    state = None
+    if state_path.exists():
+        try:
+            state = json.loads(state_path.read_text())
+        except (OSError, ValueError) as error:
+            raise ValueError(f'Invalid managed iTerm2 default state: {state_path}') from error
+        if (not isinstance(state, dict) or state.get('schema_version') != 1
+                or not isinstance(state.get('managed_guid'), str)
+                or not ITERM_GUID_PATTERN.fullmatch(state['managed_guid'])
+                or state.get('original_guid') is not None
+                and (not isinstance(state.get('original_guid'), str)
+                     or not ITERM_GUID_PATTERN.fullmatch(state['original_guid']))):
+            raise ValueError(f'Invalid managed iTerm2 default state: {state_path}')
+        if current is not None and current not in (state['managed_guid'], guid):
+            print('Preserved: iTerm2 default profile was changed after One Bite configured it.')
+            state['managed_guid'] = guid
+            content = (json.dumps(state, indent=2) + '\n').encode()
+            write(state_path, content, backup_dir=home / '.config/1bite/backups')
+            return
+    else:
+        state = {'schema_version': 1, 'original_guid': current, 'managed_guid': guid}
+    if current != guid:
+        write_iterm_default(home, guid)
+        if read_iterm_default(home) != guid:
+            raise ValueError('iTerm2 did not retain the One Bite default profile Guid')
+        print('Configured: One Bite is the iTerm2 default profile after iTerm2 is reopened.')
+    else:
+        print('Preserved: One Bite is already the iTerm2 default profile.')
+    state['managed_guid'] = guid
+    content = (json.dumps(state, indent=2) + '\n').encode()
+    write(state_path, content, backup_dir=home / '.config/1bite/backups')
+
+
+def verify_iterm_default(home, guid):
+    state_path = home / ITERM_DEFAULT_STATE_PATH
+    if state_path.is_symlink() or not state_path.is_file():
+        raise ValueError('Managed iTerm2 default state is missing; rerun --configure-only')
+    try:
+        state = json.loads(state_path.read_text())
+    except (OSError, ValueError) as error:
+        raise ValueError(f'Invalid managed iTerm2 default state: {state_path}') from error
+    if (state.get('schema_version') != 1 or state.get('managed_guid') != guid
+            or state.get('original_guid') is not None
+            and (not isinstance(state.get('original_guid'), str)
+                 or not ITERM_GUID_PATTERN.fullmatch(state['original_guid']))):
+        raise ValueError('Managed iTerm2 default state differs from the selected Dynamic Profile')
+    current = read_iterm_default(home)
+    if current == guid:
+        print('One Bite is the iTerm2 default profile.')
+    elif current is not None and ITERM_GUID_PATTERN.fullmatch(current):
+        print('iTerm2 default profile is a preserved user override.')
+    else:
+        raise ValueError('iTerm2 does not have a valid default profile Guid; rerun --configure-only')
 
 
 def validate_git_defaults(content):
@@ -357,6 +474,7 @@ def configure(home, config_dir, codex_home=None, claude_home=None, shell_home=No
     obsidian_directory = home / OBSIDIAN_TEMPLATE_PATH
     obsidian_command_paths = [home / path for path in OBSIDIAN_COMMAND_PATHS]
     paths = ([claude_path] if with_claude else []) + [codex_path, home / PROFILE_PATH,
+             home / ITERM_DEFAULT_STATE_PATH, home / ITERM_PREFERENCES_PATH,
              home / '.config/1bite/shell.zsh', home / '.config/1bite/env.zsh',
              home / '.config/1bite/vimrc', home / '.vimrc',
              home / GIT_IGNORE_PATH, home / VSCODE_PATH, home / KIRO_PATH,
@@ -401,6 +519,7 @@ def configure(home, config_dir, codex_home=None, claude_home=None, shell_home=No
     configure_git(home, git_defaults, git_ignore, current_git)
     write(codex_path, codex.encode(), preserve=True)
     write(home / PROFILE_PATH, profile.encode(), backup_dir=home / PROFILE_BACKUP_PATH)
+    configure_iterm_default(home, json.loads(profile)['Profiles'][0]['Guid'])
     write(home / '.config/1bite/env.zsh', environment)
     # Publish dependencies before the loader so an upgrade never exposes a new
     # shell.zsh that points at modules which have not been installed yet.
@@ -434,7 +553,8 @@ def configure(home, config_dir, codex_home=None, claude_home=None, shell_home=No
             print(f'Zsh entry initialized: {path} now loads the separate One Bite configuration.')
     print(f'Zsh entry files remain user-owned: {shell_home / ".zshrc"} and {shell_home / ".zprofile"}.')
     print('Managed settings live separately under ~/.config/1bite/zsh/. Put personal overrides after the One Bite loader.')
-    print('Restart safely with: exec zsh')
+    print('Restart a non-iTerm shell safely with: exec zsh')
+    print('For iTerm2, quit and reopen the app so the One Bite default profile and font take effect.')
     path = home / '.vimrc'
     content = path.read_text() if path.exists() else ''
     content = update_source_line(content, VIM_SOURCE_LINE, VIM_SOURCE_LINES)
@@ -478,6 +598,7 @@ def verify(home, codex_home=None, claude_home=None, shell_home=None, with_claude
     validate(((claude_home or home / '.claude') / 'settings.json').read_text() if with_claude else '{}',
              ((codex_home or home / '.codex') / 'config.toml').read_text(),
              (home / PROFILE_PATH).read_text())
+    verify_iterm_default(home, json.loads((home / PROFILE_PATH).read_text())['Profiles'][0]['Guid'])
     if list((home / PROFILE_PATH).parent.glob('1bite.json.backup-*')):
         raise ValueError('iTerm2 backup files remain in DynamicProfiles; rerun --configure-only to relocate them')
     managed = home / '.config/1bite'

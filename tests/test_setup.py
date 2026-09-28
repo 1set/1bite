@@ -17,6 +17,9 @@ ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('configure', ROOT / 'scripts/configure.py')
 configure = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(configure)
+runtime_spec = importlib.util.spec_from_file_location('runtime_smoke', ROOT / 'scripts/runtime-smoke.py')
+runtime_smoke = importlib.util.module_from_spec(runtime_spec)
+runtime_spec.loader.exec_module(runtime_smoke)
 
 
 class ConfigurationTests(unittest.TestCase):
@@ -83,6 +86,37 @@ class ConfigurationTests(unittest.TestCase):
                   if p.is_file() and p.name != '.DS_Store'}
         expected = json.loads((ROOT / 'tests/fixtures/config-golden.json').read_text())
         self.assertEqual(actual, expected)
+
+    def test_iterm_default_is_managed_across_upgrade_but_respects_a_later_user_choice(self):
+        legacy = '703f9b42-2cc7-4a89-8e5e-887014d02daa'
+        current = '84911aa0-4114-494c-a17c-6a2ef38b5b34'
+        personal = '11111111-1111-4111-8111-111111111111'
+        user_selected = '22222222-2222-4222-8222-222222222222'
+        state = self.home / configure.ITERM_DEFAULT_STATE_PATH
+        state.parent.mkdir(parents=True)
+        state.write_text(json.dumps({'schema_version': 1, 'original_guid': personal,
+                                     'managed_guid': legacy}) + '\n')
+        configure.write_iterm_default(self.home, legacy)
+        self.apply()
+        self.assertEqual(configure.read_iterm_default(self.home), current)
+        self.assertEqual(json.loads(state.read_text()),
+                         {'schema_version': 1, 'original_guid': personal,
+                          'managed_guid': current})
+        before = self.snapshot()
+        self.apply()
+        self.assertEqual(self.snapshot(), before)
+
+        configure.write_iterm_default(self.home, user_selected)
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.apply()
+            configure.verify(self.home, with_claude=True)
+        self.assertEqual(configure.read_iterm_default(self.home), user_selected)
+        self.assertIn('iTerm2 default profile is a preserved user override', output.getvalue())
+
+        preference = self.home / configure.ITERM_PREFERENCES_PATH
+        preference.write_bytes(configure.plistlib.dumps({}))
+        with self.assertRaisesRegex(ValueError, 'valid default profile Guid'):
+            configure.verify_iterm_default(self.home, current)
 
     def test_obsidian_starter_and_command_are_managed_without_workspace_state(self):
         self.apply()
@@ -224,7 +258,8 @@ class ConfigurationTests(unittest.TestCase):
         self.assertIn('.zshrc.backup-*', text)
         self.assertIn('Zsh entry files remain user-owned:', text)
         self.assertIn('Managed settings live separately under ~/.config/1bite/zsh/', text)
-        self.assertIn('Restart safely with: exec zsh', text)
+        self.assertIn('Restart a non-iTerm shell safely with: exec zsh', text)
+        self.assertIn('quit and reopen the app', text)
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
             configure.configure(self.home, ROOT / 'config')
@@ -505,6 +540,12 @@ class ConfigurationTests(unittest.TestCase):
             self.assertEqual(result.stdout.strip().split()[-1], widget)
             self.assertEqual(result.stderr, '')
         profile = json.loads((ROOT / 'config/iterm2-profile.json').read_text())['Profiles'][0]
+        self.assertEqual(profile['Guid'], '84911aa0-4114-494c-a17c-6a2ef38b5b34')
+        self.assertNotEqual(profile['Guid'], '703f9b42-2cc7-4a89-8e5e-887014d02daa')
+        self.assertNotIn('Default Bookmark', profile)
+        self.assertEqual(profile['Normal Font'], 'MesloLGSNF-Regular 13')
+        self.assertEqual(profile['Non Ascii Font'], 'MesloLGSNF-Regular 13')
+        self.assertFalse(profile['Use Non-ASCII Font'])
         self.assertIs(profile['Unlimited Scrollback'], True)
         self.assertEqual(profile['Scrollback Lines'], 0)
         self.assertIs(profile['Mouse Reporting'], True)
@@ -512,6 +553,42 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual(set(profile['Keyboard Map']), {
             '0xf702-0x240000', '0xf703-0x240000', '0xf702-0x280000', '0xf703-0x280000',
             '0xf702-0x300000', '0xf703-0x300000', '0xf729-0x0', '0xf72b-0x0', '0x7f-0x80000'})
+
+    def test_fzf_zsh_integration_supports_current_and_legacy_interfaces(self):
+        tools = ROOT / 'config/zsh/tools.zsh'
+        for modern in (False, True):
+            with self.subTest(modern=modern), tempfile.TemporaryDirectory(prefix='fzf-shell-') as directory:
+                version = Path(directory) / 'fzf/fixture'
+                binary = version / 'bin/fzf'
+                binary.parent.mkdir(parents=True)
+                binary.write_text("""#!/bin/sh
+if [ "$1" = --zsh ]; then
+""" + ("""cat <<'EOF'
+typeset -g FZF_TEST_SOURCE=modern
+function fzf-history-widget { :; }
+zle -N fzf-history-widget
+bindkey '^R' fzf-history-widget
+EOF
+exit 0
+""" if modern else """exit 2
+""") + """fi
+exit 0
+""")
+                binary.chmod(0o755)
+                shell = version / 'shell'
+                if not modern:
+                    shell.mkdir()
+                    (shell / 'completion.zsh').write_text('typeset -g FZF_TEST_COMPLETION=legacy\n')
+                    (shell / 'key-bindings.zsh').write_text(
+                        "typeset -g FZF_TEST_SOURCE=legacy\n"
+                        "function fzf-history-widget { :; }\n"
+                        "zle -N fzf-history-widget\n"
+                        "bindkey '^R' fzf-history-widget\n")
+                env = {**os.environ, 'PATH': str(binary.parent) + ':/usr/bin:/bin'}
+                runtime = Path(directory) / 'runtime'
+                runtime.mkdir()
+                with mock.patch.dict(os.environ, env, clear=True):
+                    runtime_smoke.check_fzf(runtime, tools)
 
 
 class InstallerTests(unittest.TestCase):
@@ -871,9 +948,13 @@ probe_formula() { [[ "$OPERATION" != reinstall ]]; }
                 self.assertEqual(result.returncode, 22, result.stderr)
                 self.assertNotIn('WRONG', result.stdout)
 
-    def test_node_probe_covers_npm(self):
-        result = self.run_shell('node() { return 0; }; npm() { return 1; }; probe_formula node')
-        self.assertNotEqual(result.returncode, 0)
+    def test_node_probe_covers_npm_and_npx(self):
+        for broken in ('npm', 'npx'):
+            with self.subTest(broken=broken):
+                result = self.run_shell(
+                    f'node() {{ return 0; }}; npm() {{ return 0; }}; npx() {{ return 0; }}; '
+                    f'{broken}() {{ return 1; }}; probe_formula node')
+                self.assertNotEqual(result.returncode, 0)
 
     def test_git_lfs_repeat_keeps_global_config_metadata_and_custom_filters(self):
         with tempfile.TemporaryDirectory(prefix='lfs-config-') as directory:
@@ -1100,10 +1181,11 @@ apply_configuration() { echo CONFIGURED; }
 check_agent() { echo "AGENT $1"; }
 verify_installation() { echo VERIFIED; }
 prepare_sogou_installer() { echo SOGOU-PREPARED; }
+prepare_doubao_input_installer() { echo DOUBAO-PREPARED; }
 execute_mode
 echo "TOTAL $COMPLETED_STEPS $STEP_TOTAL"
 """
-        default_count = (11 + len((ROOT / 'config/formulae.txt').read_text().split())
+        default_count = (12 + len((ROOT / 'config/formulae.txt').read_text().split())
                          + len((ROOT / 'config/casks.tsv').read_text().splitlines())
                          + len((ROOT / 'config/font-casks.tsv').read_text().splitlines())
                          + len((ROOT / 'config/vscode-extensions.txt').read_text().split()) - 2)
@@ -1118,8 +1200,9 @@ echo "TOTAL $COMPLETED_STEPS $STEP_TOTAL"
                     self.assertLess(result.stdout.index('CONFIGURED'), result.stdout.index('AGENT claude'))
                 count = default_count + 2 * (claude == 'true') + (enabled == 'true')
                 self.assertIn(f'TOTAL {count} {count}', result.stdout)
+                self.assertGreater(result.stdout.index('DOUBAO-PREPARED'), result.stdout.index('VERIFIED'))
                 if enabled == 'true':
-                    self.assertGreater(result.stdout.index('SOGOU-PREPARED'), result.stdout.index('VERIFIED'))
+                    self.assertGreater(result.stdout.index('SOGOU-PREPARED'), result.stdout.index('DOUBAO-PREPARED'))
                 else:
                     self.assertNotIn('SOGOU-PREPARED', result.stdout)
 
@@ -1232,6 +1315,8 @@ ensure_cask kiro Kiro.app
                                     capture_output=True, text=True)
             self.assertEqual(result.returncode, 0)
             self.assertIn('https://chatgpt.com/codex/install.sh', result.stdout)
+            self.assertIn('prepare the official Doubao Input Method ZIP', result.stdout)
+            self.assertNotIn('prepare official Sogou ZIP', result.stdout)
             self.assertFalse(target.exists())
         for args in (['--unknown'], ['--plan', '--verify'], ['--config-dir'], ['--log-dir'], ['--diagnose', '--update'],
                      ['--verify', '--with-sogou'], ['--diagnose', '--with-sogou']):
@@ -1251,7 +1336,7 @@ ensure_cask kiro Kiro.app
         line = next(line for line in script.splitlines() if line.startswith('for executable in '))
         actual = line.removeprefix('for executable in ').removesuffix('; do').split()
         self.assertEqual(set(actual), {mapping.get(p, p.rsplit('/', 1)[-1]) for p in expected}
-                         | {'npm', 'neofetch', 'ob', 'obn', 'claude', 'codex'})
+                         | {'npm', 'npx', 'neofetch', 'ob', 'obn', 'claude', 'codex'})
         for package in packages:
             result = self.run_shell(f'formula_command {package}')
             self.assertEqual(result.stdout.strip(), mapping.get(package, package.rsplit('/', 1)[-1]))

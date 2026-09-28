@@ -21,6 +21,14 @@ if command -v zoxide >/dev/null; then
   eval "$setup_zoxide_init"$'\n:' || return
   unset setup_zoxide_init
 fi
-if [[ -t 0 && -t 1 ]] && command -v fzf >/dev/null; then
-  source <(fzf --zsh) || return
+if [[ -t 0 && -t 1 ]] && (( $+commands[fzf] )); then
+  if setup_fzf_init=$(command fzf --zsh 2>/dev/null) && [[ -n $setup_fzf_init ]]; then
+    eval "$setup_fzf_init" || return
+  else
+    # fzf before 0.48 ships the same integration as files instead of --zsh.
+    setup_fzf_shell="${commands[fzf]:A:h:h}/shell"
+    [[ -r "$setup_fzf_shell/completion.zsh" ]] && source "$setup_fzf_shell/completion.zsh"
+    [[ -r "$setup_fzf_shell/key-bindings.zsh" ]] && source "$setup_fzf_shell/key-bindings.zsh"
+  fi
+  unset setup_fzf_init setup_fzf_shell
 fi

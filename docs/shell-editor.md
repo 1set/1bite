@@ -37,7 +37,7 @@ An external configuration directory must be updated when a release introduces a 
 
 Before replacing managed env, shell, Zsh, Vim, or iTerm2 files, One Bite writes a `.backup-*` copy. It also backs up `.zshrc`, `.zprofile`, and `.vimrc` before changing their loader line. Writes use a same-directory temporary file and atomic replacement; identical content is skipped. Recognized loader variants are replaced in place by one canonical line, preserving all personal lines before and after it in their original order. Similar-looking personal commands are not removed. New modules are published before the loader is changed, and `--verify` checks exact managed bytes.
 
-After configuration, One Bite prints the two user-owned entry paths, the separate managed directory, and `exec zsh`. You can inspect the only One Bite entry lines with:
+After configuration, One Bite prints the two user-owned entry paths, the separate managed directory, `exec zsh` for non-iTerm shells, and the iTerm2 reopen step. You can inspect the only One Bite entry lines with:
 
 ```bash
 grep -nF ".config/1bite" ~/.zshrc ~/.zprofile
@@ -71,7 +71,11 @@ set undofile
 - `DOCKER_DEFAULT_PLATFORM` defaults to `linux/amd64`, including on Apple Silicon, so ordinary Docker builds and runs target a portable x86-64 Linux platform. An already set value is preserved. Override it before loading the environment or for one command when a project needs `linux/arm64` or a multi-platform builder.
 - Existing absolute `CODEX_HOME` and `CLAUDE_CONFIG_DIR` are honored. Finder-launched applications cannot be assumed to inherit terminal environment variables.
 
-After Powerlevel10k is enabled, run `exec zsh` instead of `source ~/.zshrc`. The configuration wizard normally opens automatically; otherwise run `p10k configure`. Select MesloLGS NF or JetBrains Mono Nerd Font in **iTerm2 Settings > Profiles > Text**. Font installation does not change an existing profile, and the user owns the generated `~/.p10k.zsh`.
+After Powerlevel10k is enabled, reopen iTerm2 and start a new window with **Profiles > One Bite** before running the wizard. That managed profile selects the installed `MesloLGSNF-Regular` face; an already-open window keeps its previous font. The wizard normally opens automatically in the new shell; otherwise run `p10k configure`. If it still offers to download Meslo, cancel, reopen iTerm2, and confirm **Settings > Profiles > One Bite > Text** shows MesloLGS Nerd Font. The user owns the generated `~/.p10k.zsh`.
+
+The tools module enables fzf's Ctrl+R history search, Ctrl+T file picker, and Option+C directory picker only in an interactive terminal. Current fzf releases use `fzf --zsh`; older healthy Homebrew releases fall back to their installed `shell/completion.zsh` and `shell/key-bindings.zsh`. Personal bindings after the One Bite loader still take precedence.
+
+When no plugin list exists, the framework enables the built-in Oh My Zsh plugins `git`, `macos`, `vscode`, `web-search`, `extract`, `docker`, and `tmux`. An existing list remains user-owned. fzf, AutoJump, and zoxide deliberately stay out of the OMZ list because the tools module loads their native integrations once and verifies their actual widgets/functions.
 
 For a maintained cross-shell prompt, consider [Starship](https://starship.rs/). [Oh My Posh](https://ohmyposh.dev/) provides a broader segment/template model, and [Spaceship](https://spaceship-prompt.sh/) stays native to Zsh. Initialize only one prompt engine. One Bite currently manages Powerlevel10k and leaves other prompt configuration untouched.
 
@@ -183,7 +187,7 @@ Optional extensions are updated by VS Code and are absent from One Bite's requir
 
 ## iTerm2 and tmux
 
-Choose **One Bite** from Profiles and optionally make it the default. The Dynamic Profile uses a Clean Dark palette, Menlo 13 initially, no transparency or blur, a Zsh login shell, unlimited scrollback, `xterm-256color`, and mouse reporting. It affects only this profile.
+Reopen iTerm2 after configuration. **One Bite** becomes the default profile and uses a Clean Dark palette, MesloLGS Nerd Font 13, no transparency or blur, a Zsh login shell, unlimited scrollback, `xterm-256color`, and mouse reporting. One Bite changes only the global default-profile GUID and its own Dynamic Profile; other profiles remain untouched. If you later choose another default, normal reruns preserve that choice.
 
 | Key | Behavior |
 | --- | --- |
@@ -198,7 +202,7 @@ Both Option keys send Escape. If Ctrl+Left/Right switches macOS spaces, disable 
 
 Recent iTerm2 releases can interpret Finder drops as file transfer in a session it identifies as remote. To paste a path reliably, select the item in Finder, press Option+Cmd+C, and paste the resulting text. Quote shell-special characters. One Bite does not alter shell integration or write undocumented file-transfer preference values.
 
-Dynamic Profile backups and interrupted staging files live outside the watched directory at `~/Library/Application Support/iTerm2/1bite-backups/`. Run `./1bite --configure-only` to repair a managed profile after reviewing backups.
+Dynamic Profile backups and interrupted staging files live outside the watched directory at `~/Library/Application Support/iTerm2/1bite-backups/`. The profile uses a release-stable unique GUID; upgrading from the earlier conflicting GUID replaces only `1bite.json`. Default ownership is recorded privately under `~/.config/1bite/` so a later user-selected default is preserved. Run `./1bite --configure-only` to repair managed settings after reviewing backups, then reopen iTerm2.
 
 | tmux command | Behavior |
 | --- | --- |

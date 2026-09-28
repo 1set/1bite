@@ -16,6 +16,8 @@ ohmyzsh	installer	https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools
 powerlevel10k	git	https://github.com/romkatv/powerlevel10k.git
 neofetch	installer	https://raw.githubusercontent.com/dylanaraps/neofetch/7.1.0/neofetch
 neofetch-sha256	checksum	3dc33493e54029fb1528251552093a9f9a2894fcf94f9c3a6f809136a42348c7
+doubao-input-download	distribution	https://lf-wave.doubaocdn.com/obj/doubao-ime/app/macos/
+doubao-input-metadata	metadata	https://formulae.brew.sh/api/cask/doubaoime.json
 sogou-download	distribution	https://ime.gtimg.com/pc/
 homebrew-api	connectivity	https://formulae.brew.sh/api/formula/go.json
 github	connectivity	https://github.com

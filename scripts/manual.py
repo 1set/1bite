@@ -49,8 +49,8 @@ def instructions(run_dir, config_dir, home=None, root=ROOT):
     complete = result.get('status') == 'success'
     claude = result.get('with_claude') is True
     pending = list(dict.fromkeys(name for name in result.get('manual_steps', [])
-                                if name in (*APPS, 'sogou-installer', 'kiro-cli-onboarding',
-                                            'powerlevel10k-configure')
+                                if name in (*APPS, 'doubao-input-installer', 'sogou-installer',
+                                            'kiro-cli-onboarding', 'powerlevel10k-configure')
                                 and (name != 'claude-desktop' or claude)))
     rows = read_json(run_dir / 'desktop-installers.json', [])
     packages = {row.get('component'): row for row in rows if isinstance(row, dict)} if isinstance(rows, list) else {}
@@ -63,7 +63,11 @@ def instructions(run_dir, config_dir, home=None, root=ROOT):
         if not complete:
             lines += ['This run did not finish. You can install the packages already listed below, then fix the earlier error and rerun the original command.']
         for number, name in enumerate(downloads, 1):
-            if name == 'sogou-installer':
+            if name == 'doubao-input-installer':
+                record = read_json(run_dir / 'doubao-input-installer.json', {})
+                path = package_path(directory, record, 'DoubaoInput-', '.zip')
+                title = 'Doubao Input Method'
+            elif name == 'sogou-installer':
                 record = read_json(run_dir / 'sogou-installer.json', {})
                 path = package_path(directory, record, 'SogouInput-', '.zip')
                 title = 'Sogou Input Method'
@@ -75,7 +79,12 @@ def instructions(run_dir, config_dir, home=None, root=ROOT):
                 lines += ['   Package: ' + str(path), '   Open command: ' + shlex.join(['open', str(path)])]
             else:
                 lines += ['   This run cannot locate the package. Check the download folder above or rerun the original command to prepare it again.']
-            if name == 'sogou-installer':
+            if name == 'doubao-input-installer':
+                lines += ['   1) Double-click the ZIP to extract it, then open the included Doubao installer application and follow its prompts.',
+                          '   2) Log out and back in if requested so macOS can load the new input method.',
+                          '   3) Open System Settings > Keyboard > Text Input > Edit and add Doubao Input Method.',
+                          '   4) Switch to Doubao from the menu bar, grant microphone access when you choose voice input, and test both typing and voice input in an editor.']
+            elif name == 'sogou-installer':
                 lines += ['   1) Double-click the ZIP to extract it, then open the official installer and follow its steps.',
                           '   2) Open System Settings > Keyboard > Text Input > Edit and add Sogou.',
                           '   3) Switch to Sogou from the menu bar and test text input in an editor.']
@@ -86,13 +95,14 @@ def instructions(run_dir, config_dir, home=None, root=ROOT):
         lines += ['', 'If macOS asks to replace an app with the same name, quit the old app first and confirm only if you intend to update it.']
     if complete:
         lines += ['', '[MANUAL] First use and sign-in (skip completed items):',
-                  '- Open a new iTerm2 window so PATH and shell settings take effect. Select the One Bite profile if wanted.',
+                  '- Quit and reopen iTerm2, then open a new window with the default One Bite profile so its font and shell settings take effect.',
                   '- Zsh: ~/.zshrc and ~/.zprofile remain your files. One Bite settings live separately in ~/.config/1bite/zsh/.',
                   '  The installer changes only one recognized guarded loader in each entry file and leaves all other lines in order.',
                   '  Changed entry files have adjacent .backup-* copies. Put personal aliases and overrides after the One Bite loader.',
                   '  Inspect the loaders with: grep -nF ".config/1bite" ~/.zshrc ~/.zprofile',
                   '  An unchanged rerun only reports that the loader is current. Unknown loader syntax stops for manual review.',
-                  '  Restart with exec zsh. If a dotfile manager owns either file, add the printed source line to its source file; do not replace the whole file.',
+                  '  Restart a non-iTerm shell with exec zsh. In iTerm2, open a new window with the One Bite profile so its updated font and shell settings take effect.',
+                  '  If a dotfile manager owns either file, add the printed source line to its source file; do not replace the whole file.',
                   '- Go: run go env GOPATH GOBIN. The installer exports the effective GOPATH and adds GOBIN or each GOPATH/bin to PATH.',
                   '- Docker: new shells default DOCKER_DEFAULT_PLATFORM to linux/amd64 for portable Linux builds; set a project-specific value when another architecture is required.',
                   '- Git: shared aliases, delta/VS Code, push/pull defaults, and the global ignore file are configured. Identity and credentials are never copied from another Mac.',
@@ -100,8 +110,9 @@ def instructions(run_dir, config_dir, home=None, root=ROOT):
                   '  If either is empty, use your own values with git config --global user.name "Your Name" and git config --global user.email "you@example.com".',
                   '- Codex CLI: run codex in a new terminal and complete sign-in.']
         if 'powerlevel10k-configure' in pending:
-            lines += ['- Powerlevel10k: do not run source ~/.zshrc; run exec zsh to restart Zsh.',
-                      '  If the wizard does not open, run p10k configure and select the installed MesloLGS NF font in iTerm2.',
+            lines += ['- Powerlevel10k: in iTerm2, open a new window with Profiles > One Bite before starting the wizard; existing windows keep their previous font.',
+                      '  The One Bite profile uses the installed MesloLGS Nerd Font. Run p10k configure in that new window if the wizard does not open.',
+                      '  If P10k still offers a font download, cancel it, restart iTerm2, and verify that Settings > Profiles > One Bite > Text shows MesloLGS Nerd Font.',
                       '  The wizard creates your personal ~/.p10k.zsh. Existing explicit themes stay unchanged until you switch them yourself.']
         if claude:
             lines += ['- Claude Code CLI: run claude in a new terminal and complete sign-in.']
@@ -120,13 +131,18 @@ def instructions(run_dir, config_dir, home=None, root=ROOT):
         if config_dir.resolve() != (root / 'config').resolve():
             command += ['--config-dir', str(config_dir.resolve())]
         command += ['--log-dir', str(run_dir.parent)]
+        confirmations = []
+        if 'doubao-input-installer' in pending:
+            confirmations.append('Doubao installation, input-source switching, microphone permission, and voice input')
+        if 'sogou-installer' in pending:
+            confirmations.append('Sogou installation and input-source switching')
+        confirmations += ['GUI sign-in', 'system permissions']
         lines += ['', '[CHECK] After installation and first launch, run this exact command in a new terminal:',
                   '  ' + shlex.join(command),
                   'This checks actual installations; a downloaded DMG without an installed app still fails. Preserve any custom directory environment variables used during installation.',
                   'After the Docker engine starts, check container execution separately:',
                   '  ' + shlex.join(['/bin/bash', str(root / '1bite'), '--docker-smoke', '--log-dir', str(run_dir.parent)]),
-                  'Sogou input switching, GUI sign-in, and system permissions still require manual confirmation.' if 'sogou-installer' in pending
-                  else 'GUI sign-in and system permissions still require manual confirmation.']
+                  ', '.join(confirmations) + ' still require manual confirmation.']
     return '\n'.join(lines).strip() + '\n' if lines else ''
 
 

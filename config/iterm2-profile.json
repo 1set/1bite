@@ -2,7 +2,7 @@
   "Profiles": [
     {
       "Name": "One Bite",
-      "Guid": "703f9b42-2cc7-4a89-8e5e-887014d02daa",
+      "Guid": "84911aa0-4114-494c-a17c-6a2ef38b5b34",
       "Custom Command": "Yes",
       "Command": "/bin/zsh -l",
       "Option Key Sends": 2,
@@ -206,8 +206,8 @@
         "Alpha Component": 1.0,
         "Color Space": "sRGB"
       },
-      "Normal Font": "Menlo-Regular 13",
-      "Non Ascii Font": "Menlo-Regular 13",
+      "Normal Font": "MesloLGSNF-Regular 13",
+      "Non Ascii Font": "MesloLGSNF-Regular 13",
       "Use Non-ASCII Font": false,
       "Transparency": 0.0,
       "Blur": false,

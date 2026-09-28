@@ -22,6 +22,7 @@ usage() {
 Usage: ./1bite [MODE] [--update] [--managed-desktop] [--with-sogou] [--with-claude] [--config-dir DIR] [--log-dir DIR]
 Default: install missing tools, repair broken managed installs, preserve healthy tools.
 Default desktop policy: prepare official DMGs for manual installation; iTerm2/VS Code use casks.
+Default input method: prepare the official Doubao ZIP for manual installation and activation.
 AI CLIs use official installers. Healthy existing tools are preserved.
 Powerlevel10k is installed after Oh My Zsh; existing explicit themes are preserved.
 --plan            Print the plan; no writes or downloads.
@@ -187,6 +188,7 @@ probe_formula() {
   "$executable" "$argument" >/dev/null 2>&1 || return 1
   if [[ "$package" == node ]]; then
     npm --version >/dev/null 2>&1 || return 1
+    npx --version >/dev/null 2>&1 || return 1
   fi
 }
 
@@ -584,6 +586,12 @@ prepare_sogou_installer() {
   STEP_ACTION=prepared
 }
 
+prepare_doubao_input_installer() {
+  python3 "$ROOT/scripts/prepare-doubao.py"
+  MANUAL_STEPS="$MANUAL_STEPS doubao-input-installer"
+  STEP_ACTION=prepared
+}
+
 execute_mode() {
   export ONE_BITE_WITH_CLAUDE="$WITH_CLAUDE"
   activate_paths
@@ -609,7 +617,7 @@ execute_mode() {
       step_run verification verify_installation
       ;;
     install)
-      STEP_TOTAL=$((11 + $(awk 'NF { n++ } END { print n+0 }' "$ROOT/config/formulae.txt") + $(awk 'NF { n++ } END { print n+0 }' "$ROOT/config/casks.tsv") + $(awk 'NF { n++ } END { print n+0 }' "$ROOT/config/font-casks.tsv") + $(awk 'NF { n++ } END { print n+0 }' "$ROOT/config/vscode-extensions.txt")))
+      STEP_TOTAL=$((12 + $(awk 'NF { n++ } END { print n+0 }' "$ROOT/config/formulae.txt") + $(awk 'NF { n++ } END { print n+0 }' "$ROOT/config/casks.tsv") + $(awk 'NF { n++ } END { print n+0 }' "$ROOT/config/font-casks.tsv") + $(awk 'NF { n++ } END { print n+0 }' "$ROOT/config/vscode-extensions.txt")))
       if [[ "$WITH_CLAUDE" != true ]]; then STEP_TOTAL=$((STEP_TOTAL - 2)); fi
       if [[ "$WITH_SOGOU" == true ]]; then STEP_TOTAL=$((STEP_TOTAL + 1)); fi
       step_run target check_install_target
@@ -626,6 +634,7 @@ execute_mode() {
       if [[ "$WITH_CLAUDE" == true ]]; then step_run claude check_agent claude; fi
       step_run codex check_agent codex
       step_run verification verify_installation
+      step_run doubao-input-installer prepare_doubao_input_installer
       if [[ "$WITH_SOGOU" == true ]]; then step_run sogou-installer prepare_sogou_installer; fi
       ;;
   esac
@@ -688,6 +697,7 @@ main() {
     echo 'Default: official desktop DMGs in ~/Downloads/1bite; install and onboard manually.'
     echo 'iTerm2/VS Code use official casks; selected AI CLIs use vendor installers.'
     echo 'Powerlevel10k follows Oh My Zsh; existing explicit themes remain user-owned.'
+    echo "Final step: prepare the official Doubao Input Method ZIP in $HOME/Downloads/1bite; install and enable it manually."
     echo 'Claude Desktop and Claude Code CLI require --with-claude, including verification and updates.'
     echo '--managed-desktop opts into automatic desktop placement and Kiro shell integration.'
     echo '--update refreshes recorded official installations; existing unmanaged copies are preserved.'

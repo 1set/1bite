@@ -115,10 +115,38 @@ execute_mode() {
         result = self.run_session(body, dict(os.environ, HOME=str(home)))
         self.assertEqual(result.returncode, 0, result.stderr)
         guide = next(self.logs.glob('*/manual-steps.txt')).read_text()
-        self.assertIn('run exec zsh', guide)
+        self.assertIn('Profiles > One Bite', guide)
         self.assertIn('p10k configure', guide)
-        self.assertIn('MesloLGS NF', guide)
+        self.assertIn('MesloLGS Nerd Font', guide)
+        self.assertIn('cancel it, restart iTerm2', guide)
         self.assertNotIn('These packages are ready', guide)
+
+    def test_default_doubao_guide_uses_only_the_current_receipt(self):
+        home = self.root / 'home'
+        downloads = home / 'Downloads/1bite'
+        downloads.mkdir(parents=True)
+        doubao = downloads / 'DoubaoInput-1.0.1-1000103-0123456789ab.zip'
+        stale_sogou = downloads / 'SogouInput-old-0123456789ab.zip'
+        doubao.write_bytes(b'doubao zip fixture')
+        stale_sogou.write_bytes(b'stale sogou fixture')
+        receipt = {'filename': doubao.name}
+        body = f'''DESKTOP_MODE=download; MANUAL_STEPS=" doubao-input-installer";
+execute_mode() {{
+  STEP_TOTAL=1
+  printf '%s\n' {shlex.quote(json.dumps(receipt))} >"$RUN_DIR/doubao-input-installer.json"
+  step_run demo echo prepared
+}}'''
+        result = self.run_session(body, dict(os.environ, HOME=str(home)))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        guide = next(self.logs.glob('*/manual-steps.txt')).read_text()
+        self.assertIn('1. Doubao Input Method', guide)
+        self.assertIn('Package: ' + str(doubao.resolve()), guide)
+        self.assertIn(shlex.join(['open', str(doubao.resolve())]), guide)
+        self.assertIn('Log out and back in', guide)
+        self.assertIn('grant microphone access', guide)
+        self.assertIn('test both typing and voice input', guide)
+        self.assertNotIn(str(stale_sogou.resolve()), guide)
+        self.assertNotIn('Sogou Input Method', guide)
 
     def test_app_display_does_not_imply_homebrew_and_keeps_machine_ids(self):
         result = self.run_session('execute_mode() { step_run cask:claude-desktop true; }')

@@ -30,7 +30,7 @@ while IFS=$'\t' read -r -u 3 package filename; do
   font_cask_healthy "$package" "$filename"
 done 3<"$ROOT/config/font-casks.tsv"
 
-for executable in git git-lfs gh go node npm python3 uv rg duf fd bat fzf autojump zoxide jq yq tmux tree delta tig lazygit wget htop shellcheck shfmt ffmpeg magick fastfetch neofetch glow pop gum crush ob obn claude codex; do
+for executable in git git-lfs gh go node npm npx python3 uv rg duf fd bat fzf autojump zoxide jq yq tmux tree delta tig lazygit wget htop shellcheck shfmt ffmpeg magick fastfetch neofetch glow pop gum crush ob obn claude codex; do
   if [[ "$executable" == claude && "$WITH_CLAUDE" != true ]]; then continue; fi
   command -v "$executable"
 done
@@ -42,6 +42,7 @@ go env GOPATH >/dev/null
 go env GOBIN >/dev/null
 node --version
 npm --version
+npx --version
 python3 --version
 uv --version
 if [[ "$WITH_CLAUDE" == true ]]; then claude --version; fi

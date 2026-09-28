@@ -16,6 +16,10 @@
 | `result.json` is absent | The previous run did not finish normally. Read events and run logs, then rerun; do not count it as success. |
 | Docker engine is not running | Open Docker.app, complete first-run setup, wait for the engine, then run the smoke check. |
 | A Docker build selects the wrong architecture | New shells default `DOCKER_DEFAULT_PLATFORM=linux/amd64`. Override it for one command, for example `DOCKER_DEFAULT_PLATFORM=linux/arm64 docker build ...`, or set a project-specific value before loading One Bite's environment. |
+| iTerm2 reports duplicate Dynamic Profile GUIDs | Update One Bite and run `./1bite --configure-only`. The managed profile receives its current unique GUID while unrelated profile files are preserved. Reopen iTerm2 after the update. |
+| New iTerm2 windows still use another profile | Run `./1bite --configure-only`, quit and reopen iTerm2, and confirm **Profiles > One Bite** exists. One Bite makes it the default once; if you later selected another default, reruns preserve your choice. |
+| Powerlevel10k offers to download Meslo again | Open a new window with **Profiles > One Bite**. Existing windows retain their old font. Confirm the profile's Text font is MesloLGS Nerd Font, reopen iTerm2, then run `p10k configure` again without accepting a duplicate font download. |
+| Ctrl+R does not open fzf history search | Open a new interactive terminal, run `type fzf-history-widget`, then `bindkey '^R'`. Rerun `./1bite --configure-only` if the widget is missing. One Bite supports both current `fzf --zsh` and older Homebrew shell integration files; personal bindings after the loader may intentionally override Ctrl+R. |
 
 ## Git configuration access
 

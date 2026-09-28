@@ -633,8 +633,11 @@ echo "ACTION $STEP_ACTION"
 
     def test_real_zsh_default_existing_and_empty_themes_and_noninteractive(self):
         self.fake_omz()
-        for before, expected in [('', 'powerlevel10k/powerlevel10k:git:1'), ('ZSH_THEME=custom; plugins=(git python);', 'custom:git python:1'),
-                                  ('ZSH_THEME="";', ':git:1'), ('omz() { :; }; ZSH_THEME=existing; plugins=(git); LOADS=0;', 'existing:git:0')]:
+        defaults = 'git macos vscode web-search extract docker tmux'
+        for before, expected in [('', f'powerlevel10k/powerlevel10k:{defaults}:1'),
+                                 ('ZSH_THEME=custom; plugins=(git python);', 'custom:git python:1'),
+                                 ('ZSH_THEME="";', f':{defaults}:1'),
+                                 ('omz() { :; }; ZSH_THEME=existing; plugins=(git); LOADS=0;', 'existing:git:0')]:
             result = self.zsh(before + 'source "$1"; source "$1"; print -r -- "$ZSH_THEME:${plugins[*]}:$LOADS"')
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stdout.strip(), expected)

@@ -75,6 +75,7 @@ scripts/manual.py
 scripts/ob.py
 scripts/official_ai.py
 scripts/plain-log.awk
+scripts/prepare-doubao.py
 scripts/prepare-sogou.py
 scripts/quality.sh
 scripts/runtime-smoke.py
@@ -83,6 +84,7 @@ scripts/welcome.sh
 scripts/verify.sh
 tests/fixtures/config-golden.json
 tests/test_desktop.py
+tests/test_doubao.py
 tests/test_editor.py
 tests/test_interruptions.py
 tests/test_kiro_shell.py

@@ -23,21 +23,22 @@ Run the installer as your normal administrator account, without `sudo`. If `gh` 
 
 | Area | Default behavior |
 | --- | --- |
-| Developer tools | Installs Git, Git LFS, GitHub CLI (`gh`), Go, Node.js, Python, uv, `rg`, duf, fd, bat, fzf, AutoJump, zoxide, jq, yq, tmux, LazyGit, shellcheck, ffmpeg, ImageMagick, and related tools with Homebrew. |
+| Developer tools | Installs Git, Git LFS, GitHub CLI (`gh`), Go, Node.js with npm/npx, Python, uv, `rg`, duf, fd, bat, fzf, AutoJump, zoxide, jq, yq, tmux, LazyGit, shellcheck, ffmpeg, ImageMagick, and related tools with Homebrew. |
 | Terminal and editor | Installs iTerm2, VS Code and extensions; configures Zsh, Vim, Git defaults, a global ignore file, and modular aliases/functions. |
 | Notes | Installs Obsidian and a reusable vault starter with Tokyo Night, the `wide` CSS snippet, portable vault settings, and empty attachment/template folders. |
 | Prompt and fonts | Installs Oh My Zsh, Powerlevel10k, MesloLGS Nerd Font, and JetBrains Mono Nerd Font while preserving personal themes and configuration. |
+| Input method | Prepares the checksum-verified official Doubao Input Method ZIP for manual installation, microphone permission, and activation. Sogou remains opt-in. |
 | AI command-line tools | Installs Codex CLI and Kiro CLI from their official installers. Claude Code is opt-in. |
 | Desktop applications | Downloads official DMGs for Chrome, ChatGPT, Kiro IDE, and Docker Desktop when the apps are missing. |
 | Optional Docker apps | Provides separate, opt-in launchers for useful local services. These apps never start as part of the main installer. |
 
 Claude Desktop and Claude Code are disabled by default. Add `--with-claude` whenever you install, update, or verify them.
 
-## Finish downloaded DMG installations
+## Finish downloaded application and input-method installations
 
-`prepared` means the DMG was downloaded and checked. It does **not** mean the application is installed.
+`prepared` means an installer package was downloaded and checked. It does **not** mean the application or input method is installed.
 
-At the end of a run, the installer prints a numbered guide for every package prepared in that run. Each item includes the exact package path, a shell-safe `open` command, application-specific first-launch tasks, and these required steps:
+At the end of a run, the installer prints a numbered guide for every package prepared in that run. Each desktop item includes the exact package path, a shell-safe `open` command, application-specific first-launch tasks, and these required steps:
 
 1. Open the DMG with the printed command.
 2. Drag the `.app` into **Applications** and wait for the copy to finish.
@@ -46,6 +47,8 @@ At the end of a run, the installer prints a numbered guide for every package pre
 5. For Docker Desktop, wait for the engine to start. Complete Kiro IDE and Kiro CLI onboarding separately.
 
 The same guide is saved as `manual-steps.txt` in the run directory printed by the installer. After all manual work is complete, run the exact `--verify` command shown in that guide. Use the separately printed `--docker-smoke` command after Docker is running.
+
+The default run also prepares Doubao Input Method as a ZIP. Follow its separate numbered steps to extract and run the vendor installer, log out and back in when requested, add Doubao under **System Settings > Keyboard > Text Input**, grant microphone access for voice input, and test both typing and speech. Sogou is downloaded only with `--with-sogou`.
 
 ## Common commands
 
@@ -72,10 +75,13 @@ Repeat the same selection flags when rerunning or verifying. `--managed-desktop`
 
 - `.zshrc`, `.zprofile`, and `.vimrc` remain user-owned. The installer updates one recognized loader line in place and preserves the content before and after it.
 - Managed Zsh files live in `~/.config/1bite/zsh/`. Upgrades back up and atomically replace those modules; put personal overrides after the loader in `.zshrc`.
-- After configuration, the terminal prints the exact ownership boundary and `exec zsh` restart command. A non-empty entry gets a backup and review notice; an unchanged rerun reports no change. Unknown One Bite loader syntax and dotfile-manager symlinks stop before configuration writes and print the canonical line for manual merging.
+- After configuration, the terminal prints the exact ownership boundary, the `exec zsh` command for non-iTerm shells, and the iTerm2 reopen step. A non-empty entry gets a backup and review notice; an unchanged rerun reports no change. Unknown One Bite loader syntax and dotfile-manager symlinks stop before configuration writes and print the canonical line for manual merging.
 - Go exports the effective `GOPATH` and adds an explicit `GOBIN`, or each `GOPATH/bin`, to `PATH`. Existing overrides take precedence.
 - Git receives missing shared defaults and a conservative global ignore file. User identity, credentials, signing, URL rewrites, includes, aliases, and an existing custom ignore file are preserved.
-- Powerlevel10k preserves explicit themes and `~/.p10k.zsh`. After the first install, run `exec zsh`, then `p10k configure` if the wizard does not open, and select an installed Nerd Font in your terminal.
+- Powerlevel10k preserves explicit themes and `~/.p10k.zsh`. The managed One Bite iTerm2 profile selects the installed MesloLGS Nerd Font. Open a new iTerm2 window with that profile before running `p10k configure`; existing windows keep their previous profile and font.
+- After iTerm2 is reopened, One Bite is the default profile. If you later choose another default, reruns preserve your selection. Other profiles and their settings are never rewritten.
+- In an interactive terminal, fzf provides Ctrl+R history search, Ctrl+T file search, and Option+C directory search across current and older supported Homebrew releases.
+- A fresh shell enables the built-in Oh My Zsh plugins for Git, macOS, VS Code, web search, archive extraction, Docker, and tmux. Existing plugin selections remain untouched. fzf, AutoJump, and zoxide use their native integrations to avoid duplicate hooks.
 - `ob` opens Obsidian or an existing vault. `obn` copies the managed starter only into a new directory. Existing vaults remain user-owned and later One Bite updates affect only future vaults.
 
 ## Terminal welcome and fetch tools
