@@ -103,6 +103,29 @@ class InterruptionTests(unittest.TestCase):
                 os.killpg(process.pid, signal.SIGKILL)
                 process.communicate(timeout=5)
 
+    def test_read_only_probe_background_child_cannot_retain_session_lock(self):
+        ready = self.home / 'read-only-child'
+        fake_root = self.home / 'read-only-root'
+        (fake_root / 'scripts').mkdir(parents=True)
+        (fake_root / 'VERSION').write_text('test\n')
+        (fake_root / 'scripts/verify.sh').write_text(
+            'sleep 30 4>&- </dev/null >/dev/null 2>&1 &\n'
+            'printf "%s\\n" "$!" > ' + shlex.quote(str(ready)) + '\n')
+        body = ('MODE=verify; execute_mode() { ROOT=' + shlex.quote(str(fake_root))
+                + '; verify_installation; }')
+        result = subprocess.run(self.command(body), capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        child = int(self.wait_file(ready))
+        try:
+            os.kill(child, 0)
+            rerun = self.rerun()
+            self.assertEqual(rerun.returncode, 0, rerun.stderr)
+        finally:
+            try:
+                os.kill(child, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+
     def test_cli_partial_first_install_and_missing_receipt_are_repaired(self):
         for name in ('codex', 'claude'):
             with self.subTest(cli=name):

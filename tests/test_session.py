@@ -290,9 +290,17 @@ execute_mode() {{ STEP_TOTAL=2; step_run first first; step_run second second; }}
                 time.sleep(0.01)
             result = self.run_session('execute_mode() { :; }')
             self.assertEqual(result.returncode, 75)
+            self.assertIn('Lock status: held', result.stderr)
+            self.assertIn(str(self.logs / 'session.lock'), result.stderr)
         finally:
             release.touch()
             process.communicate(timeout=5)
+        status = subprocess.run(['/bin/bash', '-c', 'source "$1"; session_lock_status "$2"',
+                                 'test', str(ROOT / '1bite'), str(self.logs)],
+                                capture_output=True, text=True, timeout=5)
+        self.assertEqual(status.returncode, 0, status.stderr)
+        self.assertIn('Lock status: available', status.stdout)
+        self.assertTrue((self.logs / 'session.lock').exists())
 
     def test_log_writer_failure_is_not_success(self):
         result = self.run_session('tee() { cat >/dev/null; return 1; }; execute_mode() { :; }')

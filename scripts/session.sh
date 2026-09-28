@@ -259,9 +259,109 @@ network_check() {
   fi
 }
 
+# Read-only probes can start shell helpers that outlive their parent. Close the
+# session descriptor for the entire probe tree so such helpers cannot retain an
+# installation lock after verification has completed.
+without_session_lock() (
+  exec 9>&-
+  /usr/bin/env ONE_BITE_LOCKED=0 "$@"
+)
+
+session_lock_processes() {
+  local lock_file=$1 lsof_command='' output=''
+  if [[ -x /usr/sbin/lsof ]]; then
+    lsof_command=/usr/sbin/lsof
+  elif command -v lsof >/dev/null 2>&1; then
+    lsof_command=$(command -v lsof)
+  else
+    echo 'Process details unavailable: lsof is not installed.' >&2
+    return 0
+  fi
+  output=$("$lsof_command" -nP -Fpc "$lock_file" 2>/dev/null || :)
+  if [[ -z "$output" ]]; then
+    echo 'No process details were available for the open lock file.' >&2
+    return 0
+  fi
+  echo 'Processes with the lock file open:' >&2
+  printf '%s\n' "$output" | awk '
+    /^p/ {
+      if (pid != "") printf "  PID %s: %s\n", pid, command
+      pid=substr($0, 2)
+      command="unknown"
+      next
+    }
+    /^c/ { command=substr($0, 2) }
+    END { if (pid != "") printf "  PID %s: %s\n", pid, command }
+  ' >&2
+}
+
+session_try_lock() {
+  if [[ $(uname -s) == Darwin ]]; then
+    /usr/bin/lockf -s -t 0 9
+  else
+    # Portable test hosts; macOS bootstrap uses its system lockf, not Homebrew.
+    flock -n -E 75 9
+  fi
+}
+
+session_lock_failure() {
+  local lock_file=$1 code=$2 session_root=${1%/session.lock}
+  if [[ "$code" == 75 ]]; then
+    echo 'Lock status: held. Another One Bite process still has the session lock open.' >&2
+    echo 'This may be an active installer or a descendant left by an interrupted or older run.' >&2
+  else
+    echo "Lock status: error. The system lock helper exited $code; this does not prove another installation is running." >&2
+  fi
+  echo "Lock: $lock_file" >&2
+  session_lock_processes "$lock_file"
+  printf 'Inspect again: ./1bite --lock-status --log-dir %q\n' "$session_root" >&2
+}
+
+session_lock_status() (
+  local session_root=$1 lock_file code
+  if [[ ! -e "$session_root" ]]; then
+    echo 'Lock status: available. The state directory does not exist yet.'
+    echo "Lock: $session_root/session.lock"
+    return 0
+  fi
+  [[ -d "$session_root" ]] || {
+    echo "Lock status: error. The log root is not a directory: $session_root" >&2
+    return 73
+  }
+  session_root=$(cd "$session_root" && pwd -P) || return 73
+  lock_file="$session_root/session.lock"
+  [[ ! -L "$lock_file" ]] || {
+    echo "Lock status: error. Refusing a symbolic-link lock file: $lock_file" >&2
+    return 73
+  }
+  if [[ ! -e "$lock_file" ]]; then
+    echo 'Lock status: available. No session has created the persistent lock file yet.'
+    echo "Lock: $lock_file"
+    return 0
+  fi
+  if ! exec 9>>"$lock_file"; then
+    echo "Lock status: error. Unable to open the lock file: $lock_file" >&2
+    return 73
+  fi
+  if session_try_lock; then
+    exec 9>&-
+    echo 'Lock status: available. The persistent file exists, but no process holds its kernel lock.'
+    echo "Lock: $lock_file"
+    return 0
+  else
+    code=$?
+  fi
+  exec 9>&-
+  session_lock_failure "$lock_file" "$code"
+  [[ "$code" == 75 ]] && return 75
+  return "$code"
+)
+
 # A persistent inode with a kernel lock has no mkdir/PID publication or stale-
-# recovery window. Descriptor 9 is inherited by shell installers and explicitly
-# passed to native installers launched from Python. Never unlink session.lock.
+# recovery window. Descriptor 9 is inherited by mutating shell installers and
+# explicitly passed to mutating native installers launched from Python. The
+# complete read-only verification tree closes it through without_session_lock.
+# Never unlink session.lock.
 run_session() (
   local session_root=$1 code
   local statuses=()
@@ -269,19 +369,19 @@ run_session() (
   umask 077
   mkdir -p "$session_root"
   session_root=$(cd "$session_root" && pwd -P)
-  [[ ! -L "$session_root/session.lock" ]] || return 75
+  [[ ! -L "$session_root/session.lock" ]] || {
+    echo "Lock status: error. Refusing a symbolic-link lock file: $session_root/session.lock" >&2
+    return 73
+  }
   exec 9>>"$session_root/session.lock"
-  if [[ $(uname -s) == Darwin ]]; then
-    /usr/bin/lockf -s -t 0 9 || {
-      echo 'Another installation is still running.' >&2
-      return 75
-    }
+  if session_try_lock; then
+    :
   else
-    # Portable test hosts; macOS bootstrap uses its system lockf, not Homebrew.
-    flock -n -E 75 9 || {
-      echo 'Another installation is still running.' >&2
-      return 75
-    }
+    code=$?
+    exec 9>&-
+    session_lock_failure "$session_root/session.lock" "$code"
+    [[ "$code" == 75 ]] && return 75
+    return "$code"
   fi
   export ONE_BITE_LOCKED=1
   RUN_DIR=$(mktemp -d "$session_root/$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX")

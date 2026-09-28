@@ -1470,6 +1470,11 @@ ensure_cask kiro Kiro.app
             self.assertNotIn('ghcr\t', result.stdout)
             self.assertNotIn('prepare official Sogou ZIP', result.stdout)
             self.assertFalse(target.exists())
+            status = subprocess.run([str(ROOT / '1bite'), '--lock-status', '--log-dir', str(target)],
+                                    capture_output=True, text=True)
+            self.assertEqual(status.returncode, 0, status.stderr)
+            self.assertIn('Lock status: available', status.stdout)
+            self.assertFalse(target.exists())
         for args in (['--unknown'], ['--plan', '--verify'], ['--config-dir'], ['--log-dir'], ['--diagnose', '--update'],
                      ['--verify', '--with-sogou'], ['--diagnose', '--with-sogou']):
             result = subprocess.run([str(ROOT / '1bite'), *args], capture_output=True)

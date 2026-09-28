@@ -57,6 +57,7 @@ The default run checks Doubao Input Method independently after the managed Pytho
 ./1bite                              # Install or repair the default selection
 ./1bite --update                     # Update managed tools and refresh DMGs
 ./1bite --welcome                    # Show the colorful One Bite system card
+./1bite --lock-status                # Inspect the session lock and its open processes
 ./1bite --verify                     # Strictly verify actual installations
 ./1bite --check-updates              # Report available updates without changing them
 ./1bite --configure-only             # Apply managed configuration templates only

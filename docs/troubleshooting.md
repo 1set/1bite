@@ -12,7 +12,7 @@
 | Git or Git LFS reports `gitconfig: Permission denied` | Git cannot read configuration. Inspect the file and parent permissions as described below, then rerun. |
 | Existing AI configuration is invalid | Repair the relevant JSON or TOML. The installer will not overwrite it. |
 | An externally managed app is damaged | Repair it with its original installer; One Bite does not delete unknown apps. |
-| Exit status 75 | Another process owns the session lock. Wait for it and do not delete `session.lock`. |
+| Exit status 75 | Run `./1bite --lock-status`. Wait for an active installer; if an old read-only probe is listed, confirm it is idle and terminate that PID. Do not delete `session.lock`. |
 | `result.json` is absent | The previous run did not finish normally. Read events and run logs, then rerun; do not count it as success. |
 | Selected Docker Desktop engine is not running | If you installed it with `--with-docker`, open Docker.app, complete first-run setup, wait for the engine, then run the smoke check. For another compatible engine, start it with its own controls. |
 | A Docker build selects the wrong architecture | New shells default `DOCKER_DEFAULT_PLATFORM=linux/amd64`. Override it for one command, for example `DOCKER_DEFAULT_PLATFORM=linux/arm64 docker build ...`, or set a project-specific value before loading One Bite's environment. |
@@ -74,6 +74,16 @@ One Bite never automatically broadens system or private configuration permission
 
 ## Resume after interruption
 
-Wait for all child processes from the earlier run, then rerun with the same options and log directory. Exit status 75 means the kernel lock is still held. `session.lock` intentionally remains after a normal run because its inode is persistent; its existence alone does not mean the session is locked.
+Inspect the selected log root without creating a new session:
+
+```bash
+./1bite --lock-status
+# Use the same custom root when applicable:
+./1bite --lock-status --log-dir /absolute/path/to/log-root
+```
+
+Exit status 75 means a process still has the kernel lock open. The command prints only PID and command names from `lsof`, not full arguments. Wait for an active installer. If the original run has finished and the listed process is a known idle descendant, terminate that specific PID normally and inspect again. One Bite does not kill processes automatically. A lock-helper or filesystem failure is reported separately instead of being mislabeled as a parallel install.
+
+`session.lock` intentionally remains after a normal run because its inode is persistent; its existence alone does not mean the session is locked. Never delete it to clear a live lock: the old process would retain the old inode while a new run locks a replacement, defeating mutual exclusion. A read-only login-Zsh probe left by an affected release must exit once before the corrected release can acquire the lock.
 
 A rerun checks real health, repairs an owned partial CLI install, and verifies or recovers a managed desktop-app replacement transaction. A complete, verified DMG may be reused. A run without `result.json` is incomplete. Personal configuration and damaged software from an unknown source are preserved. Network, storage, permissions, or an upstream installer's own lock can still require manual repair.

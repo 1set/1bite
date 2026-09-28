@@ -28,6 +28,7 @@ AI CLIs use official installers. Healthy existing tools are preserved.
 Powerlevel10k is installed after Oh My Zsh; existing explicit themes are preserved.
 --plan            Print the plan; no writes or downloads.
 --welcome         Show the colorful One Bite system card; no writes or downloads.
+--lock-status     Show whether the selected log root is locked and list openers.
 --update          Update managed tools and refresh desktop DMGs (install mode only).
 --managed-desktop Automatically place desktop apps and configure Kiro hooks (explicit opt-in).
 --check-updates   Report available versions and configuration drift; never upgrade.
@@ -592,9 +593,9 @@ apply_configuration() { python3 "$ROOT/scripts/configure.py" --config-dir "$CONF
 verify_installation() {
   export DESKTOP_MODE
   if [[ "$MODE" == install && "$DESKTOP_MODE" == download ]]; then
-    ONE_BITE_ALLOW_PREPARED_DESKTOPS=1 /bin/bash "$ROOT/scripts/verify.sh"
+    without_session_lock /usr/bin/env ONE_BITE_ALLOW_PREPARED_DESKTOPS=1 /bin/bash "$ROOT/scripts/verify.sh"
   else
-    ONE_BITE_ALLOW_PREPARED_DESKTOPS='' /bin/bash "$ROOT/scripts/verify.sh"
+    without_session_lock /usr/bin/env ONE_BITE_ALLOW_PREPARED_DESKTOPS='' /bin/bash "$ROOT/scripts/verify.sh"
   fi
 }
 prepare_sogou_installer() {
@@ -680,7 +681,7 @@ main() {
   ui_init
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --plan | --welcome | --configure-only | --verify | --docker-smoke | --diagnose | --check-updates)
+      --plan | --welcome | --lock-status | --configure-only | --verify | --docker-smoke | --diagnose | --check-updates)
         [[ "$mode_set" == 0 ]] || fail 'Choose only one mode.'
         MODE=${1#--}
         mode_set=1
@@ -724,6 +725,10 @@ main() {
   case "${ONE_BITE_BANNER:-auto}" in auto | always | never) ;; *) fail 'ONE_BITE_BANNER must be auto, always or never.' ;; esac
   if [[ "$MODE" == welcome ]]; then
     welcome_full
+    return
+  fi
+  if [[ "$MODE" == lock-status ]]; then
+    session_lock_status "$LOG_ROOT"
     return
   fi
   [[ -d "$CONFIG_DIR" ]] || fail "Missing configuration directory: $CONFIG_DIR"

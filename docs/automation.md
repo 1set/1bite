@@ -7,6 +7,7 @@ Run Bash 3.2-compatible `./1bite`. Source checkout: `https://github.com/1set/1bi
 | Arguments | Mutation | Success condition |
 | --- | --- | --- |
 | `--help`, `--plan` | None, no log directory created | Help/plan printed, exit 0 |
+| `--lock-status` | None; reads the selected log root and kernel lock | Reports available, held, or lock-helper error; a held lock returns 75 |
 | no mode | Install development tools/AI CLIs; prepare missing desktop DMGs and the Doubao Input Method ZIP; apply templates | Automated tools and prepared packages verify; manual_steps lists remaining user work |
 | `--managed-desktop` | Also place desktop apps and configure managed Kiro Zsh integration | All declared packages/runtime probes pass; GUI/login remain manual |
 | `--with-docker` | Include Docker Desktop in the selected install, update, verification, inventory, and maintenance scope | Same mode-specific requirements, now including Docker Desktop; engine execution remains a separate smoke check |
@@ -106,11 +107,11 @@ tee copies raw command bytes straight to the original stdout, including untermin
 | 0 | Selected mode completed; inspect scope, not just status |
 | 1 | Validation/precondition/probe failed; inspect failed stage |
 | 74 | Log writer failed; repair log destination and retry |
-| 75 | Another session/installer child holds the kernel lock, or an old-version owner needs inspection |
+| 75 | A process still holds the kernel lock; run `./1bite --lock-status` and inspect it rather than deleting the file |
 | 130 / 143 | Interrupted by SIGINT / SIGTERM |
 | other nonzero | Underlying command's status (for example curl 22); inspect `run.log` |
 
-Invalid arguments and unsupported operating systems fail before creating a session. Once a session starts, `result.json` is written atomically on normal completion, failure and catchable interruption. SIGKILL, power loss or a full filesystem can prevent finalization: absence of `result.json` means **incomplete**, never success. `events.tsv` provides the last started stage. A subsequent run rechecks actual state under a kernel lock (system lockf on macOS; flock on Linux test hosts). session.lock is a persistent inode, not a completion marker; never delete it to unlock a live session. The kernel releases it after the final inheriting process exits. Shell installers and Python-launched native installers inherit descriptor 9, preventing a killed supervisor from unlocking a still-running child.
+Invalid arguments and unsupported operating systems fail before creating a session. Once a session starts, `result.json` is written atomically on normal completion, failure and catchable interruption. SIGKILL, power loss or a full filesystem can prevent finalization: absence of `result.json` means **incomplete**, never success. `events.tsv` provides the last started stage. A subsequent run rechecks actual state under a kernel lock (system lockf on macOS; flock on Linux test hosts). `session.lock` is a persistent inode, not a completion marker; never delete it to unlock a live session. The kernel releases it after the final inheriting process exits. Mutating shell installers and explicitly selected native installer children inherit descriptor 9 so killing a supervisor does not unlock active mutation. The complete read-only verification tree closes descriptor 9 before starting Zsh, Powerlevel10k, Kiro, Codex, Go, VS Code, PATH, runtime and inventory probes; a background helper left by those probes therefore cannot retain the session lock. `--lock-status` distinguishes genuine contention from lock-helper errors and lists PID/command pairs from `lsof` when available without reading process arguments.
 
 ## Run directory
 
