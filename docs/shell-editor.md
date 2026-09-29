@@ -73,7 +73,7 @@ set undofile
 
 After Powerlevel10k is enabled, reopen iTerm2 and start a new window with **Profiles > One Bite** before running the wizard. That managed profile selects the installed `MesloLGSNF-Regular` face; an already-open window keeps its previous font. The wizard normally opens automatically in the new shell; otherwise run `p10k configure`. If it still offers to download Meslo, cancel, reopen iTerm2, and confirm **Settings > Profiles > One Bite > Text** shows MesloLGS Nerd Font. The user owns the generated `~/.p10k.zsh`.
 
-The tools module enables fzf's Ctrl+R history search, Ctrl+T file picker, and Option+C directory picker only in an interactive terminal. Current fzf releases use `fzf --zsh`; older healthy Homebrew releases fall back to their installed `shell/completion.zsh` and `shell/key-bindings.zsh`. Personal bindings after the One Bite loader still take precedence.
+The tools module enables fzf's Ctrl+R history search, Ctrl+T file picker, and Option+C directory picker in interactive Zsh, including Powerlevel10k instant-prompt startup while its standard descriptors are redirected. Current fzf releases use `fzf --zsh`; older healthy Homebrew releases fall back to their installed `shell/completion.zsh` and `shell/key-bindings.zsh`. Personal bindings after the One Bite loader still take precedence.
 
 On a fresh machine, `.zshrc` contains only the managed loader and the default plugin array is declared inside `~/.config/1bite/zsh/framework.zsh`. The framework enables the built-in Oh My Zsh plugins `git`, `macos`, `vscode`, `web-search`, `extract`, and `tmux`, inserting `docker` only when the shell can resolve a Docker client. If `.zshrc` or another earlier file already defines `plugins=(...)`, that array remains user-owned and takes precedence byte-for-byte. fzf, AutoJump, and zoxide deliberately stay out of the managed OMZ list because the tools module loads their native integrations once and verifies their actual widgets/functions.
 
@@ -201,7 +201,7 @@ Reopen iTerm2 after configuration. **One Bite** becomes the default profile and 
 | Ctrl + A/E | Start or end of line |
 | Ctrl + W or Option + Backspace | Delete the previous word |
 | Delete | Delete the next character |
-| Ctrl + R | fzf history search in an interactive terminal |
+| Ctrl + R | fzf history search in interactive Zsh |
 
 Both Option keys send Escape. If Ctrl+Left/Right switches macOS spaces, disable those Mission Control shortcuts yourself; One Bite does not change global keyboard settings.
 
