@@ -9,6 +9,7 @@ ripgrep
 duf
 fd
 bat
+hexyl
 fzf
 autojump
 zoxide

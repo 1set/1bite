@@ -23,7 +23,7 @@ Run the installer as your normal administrator account, without `sudo`. If `gh` 
 
 | Area | Default behavior |
 | --- | --- |
-| Developer tools | Installs Git, Git LFS, GitHub CLI (`gh`), Go, Node.js with npm/npx, Python, uv, `rg`, duf, fd, bat, fzf, AutoJump, zoxide, jq, yq, tmux, LazyGit, shellcheck, ffmpeg, ImageMagick, and related tools with Homebrew. |
+| Developer tools | Installs Git, Git LFS, GitHub CLI (`gh`), Go, Node.js with npm/npx, Python, uv, `rg`, duf, fd, bat, hexyl, fzf, AutoJump, zoxide, jq, yq, tmux, LazyGit, shellcheck, ffmpeg, ImageMagick, and related tools with Homebrew. |
 | Terminal and editor | Installs iTerm2, VS Code and extensions; configures Zsh, Vim, Git defaults, a global ignore file, and modular aliases/functions. |
 | Notes | Installs Obsidian and a reusable vault starter with Tokyo Night, the `wide` CSS snippet, portable vault settings, and empty attachment/template folders. |
 | Prompt and fonts | Installs Oh My Zsh, Powerlevel10k, MesloLGS Nerd Font, and JetBrains Mono Nerd Font while preserving personal themes and configuration. |
@@ -82,8 +82,9 @@ Repeat the same selection flags when rerunning or verifying. `--managed-desktop`
 - Git receives missing shared defaults and a conservative global ignore file. User identity, credentials, signing, URL rewrites, includes, aliases, and an existing custom ignore file are preserved.
 - Powerlevel10k preserves explicit themes and `~/.p10k.zsh`. The managed One Bite iTerm2 profile selects the installed MesloLGS Nerd Font. Open a new iTerm2 window with that profile before running `p10k configure`; existing windows keep their previous profile and font.
 - After iTerm2 is reopened, One Bite is the default profile. If you later choose another default, reruns preserve your selection. Other profiles and their settings are never rewritten.
-- In an interactive terminal, fzf provides Ctrl+R history search, Ctrl+T file search, and Option+C directory search across current and older supported Homebrew releases.
+- In an interactive terminal, fzf provides Ctrl+R history search, Ctrl+T file search, and Option+C directory search across current and older supported Homebrew releases. The widgets remain enabled when a terminal host or logger redirects shell output, provided interactive Zsh still has terminal input.
 - A fresh shell enables the built-in Oh My Zsh plugins for Git, macOS, VS Code, web search, archive extraction, and tmux. When a Docker-compatible client is actually available, it also enables the Docker plugin, aliases, helper, and application CLI path. Existing plugin selections remain untouched. fzf, AutoJump, and zoxide use their native integrations to avoid duplicate hooks.
+- `sshkey` prints an existing default public key, preferring Ed25519, ECDSA, then RSA; if none exists, invoking it creates a passphrase-free Ed25519 key. `pubkey` performs the same selection and copies the public key to the clipboard. Existing keys are never overwritten.
 - `ob` opens Obsidian or an existing vault. `obn` copies the managed starter only into a new directory. Existing vaults remain user-owned and later One Bite updates affect only future vaults.
 
 ## Terminal welcome and fetch tools

@@ -572,7 +572,7 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual(profile.read_bytes(), before)
 
     def test_entire_keyboard_contract_in_real_zsh(self):
-        shell = ROOT / 'config/shell.zsh'
+        shell = ROOT / 'config/zsh/options.zsh'
         # Each declared binding must be active in a real interactive Zsh.
         commands = [line for line in (ROOT / 'config/zsh/options.zsh').read_text().splitlines()
                     if line.startswith("bindkey '")]
@@ -599,7 +599,7 @@ class ConfigurationTests(unittest.TestCase):
             '0xf702-0x240000', '0xf703-0x240000', '0xf702-0x280000', '0xf703-0x280000',
             '0xf702-0x300000', '0xf703-0x300000', '0xf729-0x0', '0xf72b-0x0', '0x7f-0x80000'})
 
-    def test_fzf_zsh_integration_supports_current_and_legacy_interfaces(self):
+    def test_fzf_with_powerlevel10k_style_redirection_supports_current_and_legacy_interfaces(self):
         tools = ROOT / 'config/zsh/tools.zsh'
         for modern in (False, True):
             with self.subTest(modern=modern), tempfile.TemporaryDirectory(prefix='fzf-shell-') as directory:
@@ -1481,7 +1481,7 @@ ensure_cask kiro Kiro.app
             self.assertNotEqual(result.returncode, 0)
 
     def test_manifest_and_all_formula_probes(self):
-        expected = {'git', 'git-lfs', 'gh', 'go', 'node', 'python', 'uv', 'ripgrep', 'duf', 'fd', 'bat',
+        expected = {'git', 'git-lfs', 'gh', 'go', 'node', 'python', 'uv', 'ripgrep', 'duf', 'fd', 'bat', 'hexyl',
                     'fzf', 'autojump', 'zoxide', 'jq', 'yq', 'tmux', 'tree', 'git-delta', 'tig', 'lazygit', 'wget',
                     'htop', 'shellcheck', 'shfmt', 'ffmpeg', 'imagemagick', 'fastfetch',
                     'charmbracelet/tap/glow', 'charmbracelet/tap/pop', 'charmbracelet/tap/gum', 'charmbracelet/tap/crush'}

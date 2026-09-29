@@ -275,6 +275,7 @@ dl https://example/file out.bin
         names = ('gpre gps1 mkcd mcd d cdf o dl mktgz mkzip tfind ff jv jp jsonview pcat '
                  'sha1 sha224 sha256 sha384 sha512 sha512224 sha512256 gci gcia git_corb '
                  'git_ignore git_readme tn tad to tkss tmuxconf tds cn gcv dkclear fingerprint '
+                 'sshkey pubkey '
                  'ffmpeg2wav ffmpeg2pcm video2wav pcm2wav heic2jpg png2jpg webp2png svg2png '
                  'transpng img_trans img_pure_jpg img_pure_png new_bash').split()
         prefix = '\n'.join(f"alias {name}='print WRONG'" for name in names)
@@ -307,6 +308,70 @@ dl https://example/file out.bin
         self.assertIn('two words.md', result.stdout)
         self.assertNotIn('other.txt', result.stdout)
         self.assertNotIn('excluded.bin', result.stdout)
+
+    def test_ssh_key_helpers_preserve_legacy_keys_and_create_ed25519_on_demand(self):
+        binary_dir = self.home / '.local/bin'
+        keygen = binary_dir / 'ssh-keygen'
+        keygen.write_text(r'''#!/bin/sh
+printf '<%s>\n' "$@" >"$HOME/ssh-keygen.args"
+if [ "$1" = -y ]; then
+  printf '%s\n' 'ssh-ed25519 DERIVED isolated-test'
+  exit 0
+fi
+target=
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = -f ]; then target=$2; shift 2; else shift; fi
+done
+[ -n "$target" ] || exit 22
+printf '%s\n' PRIVATE >"$target"
+printf '%s\n' 'ssh-ed25519 GENERATED isolated-test' >"$target.pub"
+''')
+        keygen.chmod(0o755)
+        pbcopy = binary_dir / 'pbcopy'
+        pbcopy.write_text('#!/bin/sh\ncat >"$HOME/clipboard"\n')
+        pbcopy.chmod(0o755)
+        self.env['PATH'] = str(binary_dir) + os.pathsep + self.env['PATH']
+
+        ssh_dir = self.home / '.ssh'
+        ssh_dir.mkdir()
+        (ssh_dir / 'id_rsa.pub').write_text('ssh-rsa LEGACY isolated-test\n')
+        result = self.zsh('source "$1"; sshkey')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, 'ssh-rsa LEGACY isolated-test\n')
+        self.assertFalse((self.home / 'ssh-keygen.args').exists())
+
+        (ssh_dir / 'id_ed25519.pub').write_text('ssh-ed25519 EXISTING isolated-test\n')
+        result = self.zsh('source "$1"; sshkey')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, 'ssh-ed25519 EXISTING isolated-test\n')
+
+        shutil.rmtree(ssh_dir)
+        result = self.zsh('source "$1"; sshkey')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, 'ssh-ed25519 GENERATED isolated-test\n')
+        self.assertIn('Creating a passphrase-free Ed25519 key', result.stderr)
+        self.assertEqual(ssh_dir.stat().st_mode & 0o777, 0o700)
+        self.assertEqual((self.home / 'ssh-keygen.args').read_text().splitlines(),
+                         ['<-q>', '<-t>', '<ed25519>', '<-a>', '<64>', '<-N>', '<>', '<-f>',
+                          '<' + str(ssh_dir / 'id_ed25519') + '>'])
+
+        result = self.zsh('source "$1"; pubkey')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, 'Public key copied to the clipboard.\n')
+        self.assertEqual((self.home / 'clipboard').read_text(),
+                         'ssh-ed25519 GENERATED isolated-test\n')
+
+        (ssh_dir / 'id_ed25519.pub').unlink()
+        result = self.zsh('source "$1"; sshkey')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, 'ssh-ed25519 DERIVED isolated-test\n')
+        self.assertEqual((ssh_dir / 'id_ed25519.pub').read_text(), result.stdout)
+        self.assertEqual((self.home / 'ssh-keygen.args').read_text().splitlines(),
+                         ['<-y>', '<-f>', '<' + str(ssh_dir / 'id_ed25519') + '>'])
+
+        result = self.zsh('source "$1"; sshkey one two')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('usage: sshkey', result.stderr)
 
     def test_directory_jump_autojump_initialization_and_preservation(self):
         integration = self.home / '.local/share/autojump/autojump.zsh'

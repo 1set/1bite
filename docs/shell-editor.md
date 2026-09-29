@@ -105,9 +105,12 @@ The templates use lowercase local conventions: `m` for Make, `g` for Git, and `d
 | Images/scripts | `heic2jpg`, `png2jpg`, `webp2png`, `svg2png`, `transpng`; `img_trans`, `img_pure_jpg`, `img_pure_png`; `new_bash` creates a strict script and refuses overwrite |
 | Additional Git | `dif`; `gmd` for master-based repositories; `git_corb`; `git_ignore`; `git_readme` |
 | tmux | `t`, `ts`, `ta`, `tk`, `tn`, and `ta0` through `ta16` |
-| Miscellaneous | `reload`, `cls`, `e`, `ns`, `weather`, `webserver`, `fingerprint` |
+| SSH | `sshkey [path]` prints a public key; `pubkey [path]` copies it; `fingerprint` prints MD5 and SHA-256 fingerprints |
+| Miscellaneous | `reload`, `cls`, `e`, `ns`, `weather`, `webserver` |
 
 `gpre` shows status, stages all changes, and shows the staged diff. `gps1` pushes the current branch to origin with upstream tracking and rejects detached HEAD. Each function stops at its first failure. When Docker is available, `dkclear` runs `docker system prune -f`, removing stopped containers, unused networks, dangling images, and build cache but not volumes.
+
+Without a path, `sshkey` selects an existing `~/.ssh/id_ed25519`, `id_ecdsa`, or `id_rsa` key in that order and prints its public half. If the private key exists but its `.pub` file is missing, the public key is derived without changing the private key. If no default exists, the command creates a passphrase-free Ed25519 key at `~/.ssh/id_ed25519`; creation happens only when the user enters the command. Pass a private-key or `.pub` path to select another key. `pubkey` uses the same selection and copies the public key to the macOS clipboard. Neither command overwrites an existing key or inspects SSH config, agents, known hosts, or account settings.
 
 ```bash
 mb                         # run this project's make build target

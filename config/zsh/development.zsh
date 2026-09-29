@@ -106,5 +106,6 @@ alias df='df -h'
 unalias gpre gps1 mkcd mcd d cdf o dl mktgz mkzip tfind ff jv jp jsonview pcat \
   sha1 sha224 sha256 sha384 sha512 sha512224 sha512256 gci gcia git_corb \
   git_ignore git_readme tn tad to tkss tmuxconf tds cn gcv fingerprint \
+  sshkey pubkey \
   ffmpeg2wav ffmpeg2pcm video2wav pcm2wav heic2jpg png2jpg webp2png svg2png \
   transpng img_trans img_pure_jpg img_pure_png new_bash 2>/dev/null || true

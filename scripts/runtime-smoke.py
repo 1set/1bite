@@ -4,10 +4,8 @@
 from pathlib import Path
 import os
 import pty
-import select
 import subprocess
 import tempfile
-import time
 
 
 def check_autojump(root):
@@ -49,46 +47,38 @@ j jump-smoke >/dev/null
 
 
 def check_fzf(root, shell_path=None):
-    """Load the real fzf widget in a pseudo-terminal, including legacy Homebrew releases."""
+    """Load fzf despite instant-prompt-style descriptor redirection."""
     home = root / 'fzf-home'
     home.mkdir()
     env = {**os.environ, 'HOME': str(home), 'ZDOTDIR': str(home),
            'ZSH': str(home / '.oh-my-zsh')}
-    script = r'''source "$1"
+    output_path = root / 'fzf-stdout'
+    error_path = root / 'fzf-stderr'
+    script = r'''exec </dev/null >"$2" 2>"$3"
+[[ -o interactive && ! -t 0 && ! -t 1 && ! -t 2 ]]
+source "$1"
 (( $+functions[fzf-history-widget] ))
+[[ $widgets[fzf-history-widget] == user:fzf-history-widget ]]
 [[ $(bindkey '^R') == *fzf-history-widget* ]]
 '''
     master, slave = pty.openpty()
     shell_path = shell_path or Path(__file__).resolve().parents[1] / 'config/shell.zsh'
-    process = subprocess.Popen(['zsh', '-fic', script, 'smoke', str(shell_path)],
+    process = subprocess.Popen(['zsh', '-fic', script, 'smoke', str(shell_path),
+                                str(output_path), str(error_path)],
                                env=env, cwd=root, stdin=slave, stdout=slave, stderr=slave)
     os.close(slave)
-    output = bytearray()
-    deadline = time.monotonic() + 30
     try:
-        while process.poll() is None:
-            if time.monotonic() >= deadline:
-                process.kill()
-                raise subprocess.TimeoutExpired(process.args, 30, bytes(output))
-            ready, _, _ = select.select([master], [], [], 0.1)
-            if ready:
-                try:
-                    output.extend(os.read(master, 65536))
-                except OSError:
-                    break
-        while True:
-            try:
-                chunk = os.read(master, 65536)
-            except OSError:
-                break
-            if not chunk:
-                break
-            output.extend(chunk)
+        process.wait(timeout=30)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
+        raise
     finally:
         os.close(master)
-    code = process.wait(timeout=1)
-    if code:
-        raise subprocess.CalledProcessError(code, process.args, output=bytes(output))
+    if process.returncode:
+        raise subprocess.CalledProcessError(process.returncode, process.args)
+    if output_path.read_bytes() or error_path.read_bytes():
+        raise ValueError('fzf initialization wrote output while standard descriptors were redirected')
 
 
 def main():
@@ -130,7 +120,7 @@ def main():
         # Version probes avoid Pop mail delivery and Crush provider login/API calls.
         for name in ('glow', 'pop', 'gum', 'crush'):
             assert subprocess.check_output([name, '--version'], cwd=root, stdin=subprocess.DEVNULL, text=True, timeout=15).strip()
-    print('Native AutoJump ranking/reload, fzf search, Go build/run, Node npm build/run, uv Python and Charm CLI smoke checks passed.')
+    print('Native AutoJump ranking/reload, redirected fzf initialization, Go build/run, Node npm build/run, uv Python and Charm CLI smoke checks passed.')
 
 
 if __name__ == '__main__':

@@ -21,7 +21,9 @@ if command -v zoxide >/dev/null; then
   eval "$setup_zoxide_init"$'\n:' || return
   unset setup_zoxide_init
 fi
-if [[ -t 0 && -t 1 ]] && (( $+commands[fzf] )); then
+# Powerlevel10k instant prompt temporarily redirects all three standard file
+# descriptors while an interactive shell starts. ZLE widgets must still load.
+if [[ -o interactive ]] && (( $+commands[fzf] )); then
   if setup_fzf_init=$(command fzf --zsh 2>/dev/null) && [[ -n $setup_fzf_init ]]; then
     eval "$setup_fzf_init" || return
   else

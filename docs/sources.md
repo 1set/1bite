@@ -26,6 +26,7 @@ Homebrew formulae and casks use the source declared by their official definition
 | Sogou Input Method, optional | Official ZIP prepared from cask metadata | [Website](https://pinyin.sogou.com/mac/), [release notes](https://pinyin.sogou.com/mac/update_log.php), [cask](https://github.com/Homebrew/homebrew-cask/blob/master/Casks/s/sogouinput.rb) |
 | Go | Unversioned official Homebrew formula; managed Zsh adds effective `GOBIN` or every `GOPATH/bin` | [macOS installation and PATH](https://go.dev/doc/install), [releases](https://go.dev/dl/), [formula](https://formulae.brew.sh/formula/go) |
 | Node.js | Homebrew `node` formula, including npm and npx | [Downloads](https://nodejs.org/en/download), [formula](https://formulae.brew.sh/formula/node) |
+| hexyl | Homebrew formula | [Repository](https://github.com/sharkdp/hexyl), [formula](https://formulae.brew.sh/formula/hexyl) |
 | LazyGit | Homebrew formula with the `lg` alias | [Repository](https://github.com/jesseduffield/lazygit), [formula](https://formulae.brew.sh/formula/lazygit) |
 | Fetch tools | Fastfetch through its maintained Homebrew formula; Neofetch 7.1.0 from the archived official repository with a fixed SHA-256 | [Fastfetch formula](https://formulae.brew.sh/formula/fastfetch), [Neofetch 7.1.0](https://github.com/dylanaraps/neofetch/releases/tag/7.1.0) |
 | Developer fonts | `font-meslo-lg-nerd-font` and `font-jetbrains-mono-nerd-font` casks | [MesloLGS](https://formulae.brew.sh/cask/font-meslo-lg-nerd-font), [JetBrains Mono](https://formulae.brew.sh/cask/font-jetbrains-mono-nerd-font) |
