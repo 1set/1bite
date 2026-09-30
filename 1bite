@@ -1,6 +1,18 @@
 #!/bin/bash
 set -euo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+if [[ "${BASH_SOURCE[0]}" == "$0" && $# -gt 0 ]]; then
+  case "$1" in
+    --battery)
+      shift
+      exec /bin/bash "$ROOT/scripts/battery.sh" "$@"
+      ;;
+    --install-battery)
+      shift
+      exec /bin/bash "$ROOT/scripts/battery.sh" --install-tool "$@"
+      ;;
+  esac
+fi
 MODE=install
 UPDATE=false
 WITH_SOGOU=false
@@ -29,6 +41,8 @@ Powerlevel10k is installed after Oh My Zsh; existing explicit themes are preserv
 --plan            Print the plan; no writes or downloads.
 --welcome         Show the colorful One Bite system card; no writes or downloads.
 --lock-status     Show whether the selected log root is locked and list openers.
+--battery         Run battery diagnostics; supports --summary/--json/--tsv/--shell/--field.
+--install-battery Install ~/.local/bin/1bite-battery; add --update to replace an unchanged managed copy.
 --update          Update managed tools and refresh desktop DMGs (install mode only).
 --managed-desktop Automatically place desktop apps and configure Kiro hooks (explicit opt-in).
 --check-updates   Report available versions and configuration drift; never upgrade.
@@ -69,6 +83,17 @@ check_install_target() {
   [[ "${version%%.*}" -ge 26 ]] || fail 'Full installation targets macOS Tahoe 26 or newer.'
   [[ $(id -u) -ne 0 ]] || fail 'Run as your normal user; Homebrew requests sudo when needed.'
   echo "Target: Apple Silicon, macOS $version"
+  if ! startup_battery_summary; then echo 'Battery: unavailable; setup will continue.'; fi
+}
+
+startup_battery_summary() {
+  # Called inside run_session; RUN_DIR belongs to that same subshell.
+  # shellcheck disable=SC2031
+  local summary work_root=${RUN_DIR:-${TMPDIR:-/tmp}}
+  summary=$(without_session_lock /usr/bin/env TMPDIR="$work_root" /bin/bash "$ROOT/scripts/battery.sh" --summary --no-cache 2>/dev/null || :)
+  summary=${summary//$'\n'/ }
+  [[ -n "$summary" ]] || return 1
+  printf '%s\n' "$summary"
 }
 
 installer_url() {

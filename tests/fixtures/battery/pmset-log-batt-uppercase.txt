@@ -1,0 +1,4 @@
+2026-09-01 01:00:00 -0700 Assertions Summary Using AC(Charge :5)
+2026-09-01 01:15:00 -0700 Wake Using BATT (Charge : 005 %)
+2026-09-01 01:45:00 -0700 DarkWake Using BATT (Charge: 04%) 12 secs
+2026-09-01 02:00:00 -0700 Assertions Summary Using AC(Charge: 4 %)

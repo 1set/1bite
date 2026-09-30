@@ -1453,9 +1453,47 @@ ensure_cask kiro Kiro.app
         for arch, version, uid, accepted in [('arm64', '26.6.2', 501, True), ('arm64', '27.0', 501, True),
                                              ('arm64', '15.7', 501, False), ('x86_64', '26.6.2', 501, False),
                                              ('arm64', '26.6.2', 0, False)]:
-            result = self.run_shell(f'uname() {{ echo {arch}; }}; sw_vers() {{ echo {version}; }}; '
-                                    f'id() {{ echo {uid}; }}; check_install_target')
+            result = self.run_shell(
+                'startup_battery_summary() { echo BATTERY-SUMMARY-CALLED; }; '
+                f'uname() {{ echo {arch}; }}; sw_vers() {{ echo {version}; }}; '
+                f'id() {{ echo {uid}; }}; check_install_target'
+            )
             self.assertEqual(result.returncode == 0, accepted)
+            self.assertEqual('BATTERY-SUMMARY-CALLED' in result.stdout, accepted)
+
+    def test_startup_battery_summary_is_fail_open_after_target_validation(self):
+        with tempfile.TemporaryDirectory(prefix='startup-battery-') as directory:
+            fake_root = Path(directory)
+            scripts = fake_root / 'scripts'
+            scripts.mkdir()
+            battery = scripts / 'battery.sh'
+            cases = [
+                ("printf 'Battery: fixture summary.\\n'\n", 'Battery: fixture summary.'),
+                ('exit 0\n', 'Battery: unavailable; setup will continue.'),
+                ("printf 'hidden probe failure\\n' >&2\nexit 23\n",
+                 'Battery: unavailable; setup will continue.'),
+            ]
+            for probe, expected in cases:
+                with self.subTest(probe=probe):
+                    battery.write_text(
+                        '#!/bin/bash\n'
+                        'if { : >&9; } 2>/dev/null; then echo inherited-lock >&2; exit 91; fi\n'
+                        '[[ "${ONE_BITE_LOCKED:-}" == 0 ]] || { echo locked-environment >&2; exit 92; }\n'
+                        '[[ "$TMPDIR" == "$EXPECTED_RUN_DIR" ]] || { echo wrong-tmpdir >&2; exit 93; }\n' +
+                        probe
+                    )
+                    result = self.run_shell(
+                        f'ROOT={shlex.quote(str(fake_root))}; '
+                        'RUN_DIR="$TEST_STATE/startup-run"; export RUN_DIR EXPECTED_RUN_DIR="$RUN_DIR"; '
+                        'exec 9>"$TEST_STATE/session.lock"; export ONE_BITE_LOCKED=1; '
+                        'uname() { echo arm64; }; sw_vers() { echo 26.6.2; }; id() { echo 501; }; '
+                        'check_install_target; echo AFTER-TARGET'
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertIn('Target: Apple Silicon, macOS 26.6.2', result.stdout)
+                    self.assertIn(expected, result.stdout)
+                    self.assertIn('AFTER-TARGET', result.stdout)
+                    self.assertNotIn('hidden probe failure', result.stdout + result.stderr)
 
     def test_cli_invalid_arguments_and_side_effect_free_plan(self):
         with tempfile.TemporaryDirectory() as directory:

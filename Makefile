@@ -1,5 +1,5 @@
 PYTHON ?= python3
-SHELL_FILES := 1bite scripts/verify.sh scripts/docker-smoke.sh scripts/session.sh scripts/welcome.sh scripts/editor.sh scripts/quality.sh apps/qbittorrent/qbt.sh
+SHELL_FILES := 1bite scripts/verify.sh scripts/docker-smoke.sh scripts/session.sh scripts/welcome.sh scripts/editor.sh scripts/battery.sh scripts/quality.sh apps/qbittorrent/qbt.sh
 
 .PHONY: build test format-check quality check
 build:

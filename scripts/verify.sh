@@ -60,7 +60,6 @@ else
 fi
 if [[ "$DESKTOP_MODE" == managed ]]; then
   python3 "$ROOT/scripts/kiro-shell.py" --verify --app "$(app_path 'Kiro CLI.app')"
-  zsh -lic '(( $+functions[fig_preexec] && $+functions[fig_precmd] ))'
 fi
 if [[ "$WITH_DOCKER" == true ]] && app_healthy Docker.app; then
   docker --version

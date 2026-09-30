@@ -1,0 +1,234 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/1set/1bite/blob/master/docs/battery.schema.json",
+  "title": "One Bite battery diagnostic report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "collected_at",
+    "status",
+    "complete",
+    "battery",
+    "history",
+    "warning_codes"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "collected_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "no_battery",
+        "unavailable"
+      ]
+    },
+    "complete": {
+      "type": "boolean"
+    },
+    "battery": {
+      "$ref": "#/$defs/battery"
+    },
+    "history": {
+      "$ref": "#/$defs/history"
+    },
+    "warning_codes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "nullableNonnegativeInteger": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "battery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "present",
+        "charge_percent",
+        "power_source",
+        "state",
+        "cycle_count",
+        "maximum_capacity_percent",
+        "maximum_capacity_mah",
+        "design_capacity_mah",
+        "health",
+        "voltage_mv",
+        "current_ma"
+      ],
+      "properties": {
+        "present": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "charge_percent": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "power_source": {
+          "enum": [
+            "ac",
+            "battery",
+            "unknown",
+            null
+          ]
+        },
+        "state": {
+          "enum": [
+            "charging",
+            "charged",
+            "discharging",
+            "not_charging",
+            "unknown",
+            null
+          ]
+        },
+        "cycle_count": {
+          "$ref": "#/$defs/nullableNonnegativeInteger"
+        },
+        "maximum_capacity_percent": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "maximum_capacity_mah": {
+          "$ref": "#/$defs/nullableNonnegativeInteger"
+        },
+        "design_capacity_mah": {
+          "$ref": "#/$defs/nullableNonnegativeInteger"
+        },
+        "health": {
+          "enum": [
+            "normal",
+            "service_recommended",
+            "replace_soon",
+            "replace_now",
+            "unknown"
+          ]
+        },
+        "voltage_mv": {
+          "$ref": "#/$defs/nullableNonnegativeInteger"
+        },
+        "current_ma": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      }
+    },
+    "history": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "duration_basis",
+        "may_include_sleep",
+        "is_lifetime",
+        "retained_event_count",
+        "interval_count",
+        "intervals"
+      ],
+      "properties": {
+        "duration_basis": {
+          "const": "wall_clock"
+        },
+        "may_include_sleep": {
+          "const": true
+        },
+        "is_lifetime": {
+          "const": false
+        },
+        "retained_event_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "interval_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "intervals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/interval"
+          }
+        }
+      }
+    },
+    "interval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "start_at",
+        "end_at",
+        "start_percent",
+        "end_percent",
+        "delta_percent",
+        "duration_seconds",
+        "complete"
+      ],
+      "properties": {
+        "source": {
+          "enum": [
+            "ac",
+            "battery"
+          ]
+        },
+        "start_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "end_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "start_percent": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "end_percent": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "delta_percent": {
+          "type": "integer",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "duration_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "complete": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

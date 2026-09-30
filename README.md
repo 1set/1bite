@@ -31,6 +31,7 @@ Run the installer as your normal administrator account, without `sudo`. If `gh` 
 | AI command-line tools | Installs Codex CLI and Kiro CLI from their official installers. Claude Code is opt-in. |
 | Desktop applications | Downloads official DMGs for Chrome, ChatGPT, and Kiro IDE when the apps are missing. Docker Desktop is opt-in. |
 | Optional Docker apps | Provides separate, opt-in launchers for useful local services. These apps never start as part of the main installer. |
+| Battery diagnostics | Shows a best-effort charge, power, maximum-capacity, and cycle summary beside the initial macOS check. The independent dashboard also provides JSON, TSV, Shell, and single-field output. Probe failure never changes installation success. |
 
 Docker Desktop is disabled by default because its terms may not fit every workplace. Review the current vendor terms, then add `--with-docker` whenever you install, update, or verify it. Claude Desktop and Claude Code are also disabled by default and use `--with-claude`.
 
@@ -58,6 +59,10 @@ The default run checks Doubao Input Method independently after the managed Pytho
 ./1bite --update                     # Update managed tools and refresh DMGs
 ./1bite --welcome                    # Show the colorful One Bite system card
 ./1bite --lock-status                # Inspect the session lock and its open processes
+./1bite --battery                    # Show the independent battery dashboard
+./1bite --battery --summary          # Print the cache-free startup summary
+./1bite --battery --json             # Emit the stable battery report schema
+./1bite --install-battery            # Optionally install the 1bite-battery command
 ./1bite --verify                     # Strictly verify actual installations
 ./1bite --check-updates              # Report available updates without changing them
 ./1bite --configure-only             # Apply managed configuration templates only
@@ -98,6 +103,7 @@ One Bite installs both `neofetch` and `fastfetch`. Because Neofetch was archived
 - [Installation policy](docs/installation.md)
 - [Shell, editor, Git, aliases, and terminal configuration](docs/shell-editor.md)
 - [Obsidian installation and vault starter](docs/obsidian.md)
+- [Read-only battery diagnostics](docs/battery.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Updates and maintenance](docs/maintenance.md)
 - [Official software sources](docs/sources.md)

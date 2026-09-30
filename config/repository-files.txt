@@ -52,6 +52,8 @@ config/zsh/terminal.zsh
 config/zsh/tools.zsh
 config/zsh/utilities.zsh
 docs/automation.md
+docs/battery.md
+docs/battery.schema.json
 docs/development.md
 docs/installation.md
 docs/maintenance.md
@@ -61,6 +63,7 @@ docs/shell-editor.md
 docs/sources.md
 docs/troubleshooting.md
 docs/updates.schema.json
+scripts/battery.sh
 scripts/check-change.py
 scripts/check-format.py
 scripts/check-repository.py
@@ -82,7 +85,10 @@ scripts/runtime-smoke.py
 scripts/session.sh
 scripts/welcome.sh
 scripts/verify.sh
+tests/fixtures/battery/pmset-log-batt-uppercase.txt
+tests/fixtures/battery/pmset-log-batt.txt
 tests/fixtures/config-golden.json
+tests/test_battery.py
 tests/test_desktop.py
 tests/test_doubao.py
 tests/test_editor.py

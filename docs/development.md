@@ -9,6 +9,7 @@ This document is the short entry point for contributors. Product behavior and co
 - Use the system Zsh and do not change the login shell.
 - Preserve personal configuration, credentials, unknown installations, and software managed by another tool.
 - Treat download receipts and pending records as ownership metadata, never as proof that software is healthy.
+- Keep full battery diagnostics outside install sessions, locks, verification, inventory, and result semantics. The normal install may reuse only the cache-free, history-free summary in its initial target step; close fd 9 for its subprocess tree and make every probe failure non-blocking. Stream macOS probe output through exact allowlists and never retain raw hardware reports.
 
 ## Repository layout
 
@@ -47,6 +48,8 @@ This in-repository gate is intentionally isolated. It must not run `./1bite`, in
 
 Changes to installation logic should cover a fresh install, a healthy repeat, an explicit update, managed damage repair, and preservation of an unknown or personal installation. Changes to shell files should also cover an existing `.zshrc`, canonicalization of recognized loader variants, duplicate collapse, unchanged repeat runs, and real interactive Zsh behavior with the declared tools installed.
 
+Battery changes require fixed fixtures for both `Batt` and `BATT` log forms, optional percent spacing, charging/discharging transitions, sleep-spanning wall time, instantaneous source changes, no battery, and cache damage. Assert decimal numeric comparison, the complete summary/JSON/TSV/Shell/field contracts, output/cache privacy, 0700/0600 modes, atomic replacement, and symlink refusal. Startup integration tests must prove that the summary skips history and cache, closes the session lock, does not become a progress/result step, and cannot hide or create a later installation failure. The optional installed command must preserve unknown or modified bytes and replace an unchanged managed copy only after an explicit update. These isolated tests do not establish physical battery health.
+
 Default desktop mode must download and validate selected DMGs without placing `.app` bundles. Its final guide must be derived from the current run's receipts, exclude old or unselected packages, save `manual-steps.txt` with mode `0600`, and print a strict follow-up verification command. Managed desktop mode has separate placement and Kiro integration checks.
 
 Full installation tests belong on disposable macOS runners because they can install Homebrew packages and replace runner applications. Local development and the repository quality workflow use unit tests, archive checks, and isolated temporary homes.
@@ -58,6 +61,7 @@ Full installation tests belong on disposable macOS runners because they can inst
 - [installation.md](installation.md) explains each package manager and desktop policy.
 - [shell-editor.md](shell-editor.md) defines managed templates and configuration ownership.
 - [obsidian.md](obsidian.md) defines the portable starter, bundled theme, and vault ownership boundary.
+- [battery.md](battery.md) defines the read-only probe, report schemas, cache, and optional command ownership.
 - [troubleshooting.md](troubleshooting.md) contains user-facing recovery procedures.
 
 Keep public documentation free of personal paths, account details, internal repositories, credentials, test artifacts, and local release records.

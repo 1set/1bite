@@ -19,6 +19,7 @@ The default mode keeps vendor installation and first-launch flows for desktop ap
 | Powerlevel10k | Shallow official checkout in the Oh My Zsh custom theme directory | Same | Selected only when the user has no explicit theme. Run `p10k configure` in a new One Bite profile window; the user owns the resulting `~/.p10k.zsh`. |
 | MesloLGS and JetBrains Mono Nerd Font | Homebrew font casks | Same | Verifies each regular font face. The managed One Bite iTerm2 profile selects MesloLGS; unrelated and already-open profiles are unchanged. |
 | hexyl | Homebrew formula | Same | Provides a colored terminal hex viewer for inspecting binary files. It follows the standard install, repair, inventory, verification, and update lifecycle. |
+| Battery diagnostic | Prints a best-effort, cache-free summary during the initial target check; not installed | Same | The summary omits history, closes the session lock, and never blocks setup. `./1bite --battery` remains the independent full report. `./1bite --install-battery` explicitly installs its optional standalone command. |
 | LazyGit | Homebrew formula | Same | Provides `lazygit` and the `lg` alias. Normal reruns skip it; `--update` uses Homebrew. |
 | Fastfetch | Maintained Homebrew formula | Same | Provides a current, fast system-information view. |
 | Neofetch | Official 7.1.0 script pinned by SHA-256 | Same fixed release | Upstream is archived and absent from current Homebrew. A healthy existing command is preserved; an unknown broken command is never overwritten. |

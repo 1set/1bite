@@ -1,0 +1,9 @@
+2026-09-01 08:00:00 +0000 Wake Wake from Deep Idle Using Batt (Charge: 09%)
+2026-09-01 08:10:00 +0000 DarkWake Maintenance Using Batt (Charge: 08%) 45 secs
+2026-09-01 08:30:00 +0000 Assertions Summary Using AC (Charge: 08%)
+2026-09-01 09:00:00 +0000 Assertions Summary Using AC (Charge: 40%)
+2026-09-01 09:00:00 +0000 Wake Lid Open Using Batt (Charge: 40%)
+2026-09-01 09:00:00 +0000 Assertions Summary Using AC (Charge: 40%)
+2026-09-01 09:30:00 +0000 Sleep Entering Sleep Using AC (Charge: 70%)
+2026-09-01 10:00:00 +0000 Wake Wake from Sleep Using Batt (Charge: 100%)
+2026-09-01 12:00:00 +0000 DarkWake SleepService Using Batt (Charge: 70%) 20 secs

@@ -17,6 +17,12 @@ spec.loader.exec_module(kiro)
 
 
 class KiroShellTests(unittest.TestCase):
+    def test_full_verifier_uses_the_stable_vendor_contract(self):
+        verifier = (ROOT / 'scripts/verify.sh').read_text()
+        self.assertIn('scripts/kiro-shell.py\" --verify', verifier)
+        self.assertNotIn('fig_preexec', verifier)
+        self.assertNotIn('fig_precmd', verifier)
+
     def test_custom_kiro_home_requires_supported_cli_before_any_writes(self):
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {'KIRO_HOME': directory + '/custom'}):
             home = Path(directory)
@@ -184,7 +190,11 @@ class KiroShellTests(unittest.TestCase):
             self.assertIn('skipped', run().stdout)
             self.assertEqual(before, {p:p.read_bytes() for p in tracked})
             run(['--verify'])
-            command = '(( $+functions[fig_preexec] && $+functions[fig_precmd] )) && print -r -- "$ONE_BITE_PERSONAL"'
+            # Vendor releases may implement their post hook without the old
+            # private fig_preexec/fig_precmd function names. The public
+            # contract is a healthy integration whose login shell continues
+            # into the user's existing configuration.
+            command = 'print -r -- "$ONE_BITE_PERSONAL"'
             result = subprocess.run(['zsh', '-lic', command], env=env, capture_output=True, text=True, check=True, timeout=15)
             self.assertEqual(result.stdout.strip(), 'preserved')
             self.assertEqual(result.stderr, '')
