@@ -48,11 +48,33 @@ class OfficialAITests(unittest.TestCase):
         xml = '<rss xmlns:s="http://www.andymatuschak.org/xml-namespaces/sparkle"><channel>' + feed('1.9.0', 1) + feed('1.10.0', 2) + feed('99.0.0', 3, 'x64') + '</channel></rss>'
         result = ai.release('chatgpt', catalog, lambda _: xml)
         self.assertEqual((result['version'], result['build'], result['url']), ('1.10.0', '2', catalog['chatgpt-download']))
-        urls = [catalog['kiro-distribution'] + f'releases/stable/darwin-arm64/signed/{v}/kiro-ide-{v}-stable-darwin-arm64.dmg' for v in ('1.9.0', '1.10.0')]
-        self.assertEqual(ai.release('kiro', catalog, lambda _: ' '.join(urls))['version'], '1.10.0')
-        for text in ('https://example.invalid/kiro.dmg', urls[0].replace('stable', 'preview'), urls[0].replace('arm64', 'x64')):
+        version = '1.10.0'
+        url = catalog['kiro-distribution'] + f'releases/stable/darwin-arm64/signed/{version}/kiro-ide-{version}-stable-darwin-arm64.dmg'
+        kiro = dict(currentRelease=version,
+                    releases=[dict(version=version, updateTo=dict(version=version, url=url))])
+        requested = []
+        self.assertEqual(ai.release(
+            'kiro', catalog,
+            lambda source: requested.append(source) or json.dumps(kiro))['version'], version)
+        self.assertEqual(requested, [catalog['kiro-releases']])
+        for changed in (
+                [],
+                dict(currentRelease=version, releases={}),
+                dict(currentRelease='1.10', releases=kiro['releases']),
+                dict(currentRelease=version, releases=['invalid']),
+                dict(kiro, currentRelease='1.9.0'),
+                dict(kiro, releases=[]),
+                dict(kiro, releases=kiro['releases'] * 2),
+                dict(kiro, releases=[dict(version=version, updateTo=dict(
+                    version='1.9.0', url=url))]),
+                dict(kiro, releases=[dict(version=version, updateTo=dict(
+                    version=version, url='https://example.invalid/kiro.dmg'))]),
+                dict(kiro, releases=[dict(version=version, updateTo=dict(
+                    version=version, url=url.replace('/stable/', '/preview/')))]),
+                dict(kiro, releases=[dict(version=version, updateTo=dict(
+                    version=version, url=url.replace('arm64', 'x64')))])):
             with self.assertRaises(ValueError):
-                ai.release('kiro', catalog, lambda _: text)
+                ai.release('kiro', catalog, lambda _, value=changed: json.dumps(value))
         self.assertEqual(ai.release('codex', catalog, lambda _: '{"tag_name":"rust-v0.200.0"}')['version'], '0.200.0')
         self.assertEqual(ai.release('claude', catalog, lambda _: '2.5.0\n')['version'], '2.5.0')
 

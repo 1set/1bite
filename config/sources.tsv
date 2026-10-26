@@ -8,6 +8,7 @@ chatgpt-download	distribution	https://persistent.oaistatic.com/codex-app-prod/Co
 chatgpt-distribution	distribution	https://persistent.oaistatic.com/codex-app-prod/
 chatgpt-releases	metadata	https://persistent.oaistatic.com/codex-app-prod/appcast.xml
 kiro-distribution	distribution	https://prod.download.desktop.kiro.dev/
+kiro-releases	metadata	https://prod.download.desktop.kiro.dev/stable/metadata-dmg-darwin-arm64-stable.json
 kiro-cli-distribution	distribution	https://prod.download.cli.kiro.dev/stable/
 kiro-cli-releases	metadata	https://prod.download.cli.kiro.dev/stable/latest/manifest.json
 claude-releases	metadata	https://downloads.claude.ai/claude-code-releases/latest

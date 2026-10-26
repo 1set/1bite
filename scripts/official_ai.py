@@ -86,17 +86,24 @@ def release(name, catalog=None, fetch=fetch_text):
         _, _, version, build = max(entries)
         return dict(version=version, build=build, url=catalog['chatgpt-download'])
     if name == 'kiro':
-        entries = []
+        data = json.loads(fetch(catalog['kiro-releases']))
+        if not isinstance(data, dict):
+            raise ValueError('Unexpected Kiro stable release metadata')
+        version = data.get('currentRelease')
+        releases = data.get('releases')
+        if (not isinstance(version, str) or not re.fullmatch(r'\d+\.\d+\.\d+', version)
+                or not isinstance(releases, list) or not all(isinstance(item, dict) for item in releases)):
+            raise ValueError('Unexpected Kiro stable release metadata')
+        version_key(version)
+        entries = [item['updateTo'] for item in releases
+                   if item.get('version') == version and isinstance(item.get('updateTo'), dict)]
+        if len(entries) != 1 or entries[0].get('version') != version:
+            raise ValueError('Unexpected Kiro stable release metadata')
         prefix = catalog['kiro-distribution']
-        for url in re.findall(r'https://[^\s"<>\\]+', fetch(catalog['kiro'])):
-            if not url.startswith(prefix):
-                continue
-            match = re.fullmatch(r'releases/stable/darwin-arm64/signed/(\d+\.\d+\.\d+)/kiro-ide-\1-stable-darwin-arm64\.dmg', url[len(prefix):])
-            if match:
-                entries.append((version_key(match[1]), match[1], official_url(url, prefix)))
-        if not entries:
-            raise ValueError('No stable Apple Silicon Kiro DMG on official download page')
-        _, version, url = max(entries)
+        url = official_url(entries[0].get('url', ''), prefix)
+        expected = f'releases/stable/darwin-arm64/signed/{version}/kiro-ide-{version}-stable-darwin-arm64.dmg'
+        if url[len(prefix):] != expected:
+            raise ValueError('Unexpected Kiro stable Apple Silicon DMG')
         return dict(version=version, url=url)
     if name == 'kiro-cli':
         data = json.loads(fetch(catalog['kiro-cli-releases']))

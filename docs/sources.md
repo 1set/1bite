@@ -1,8 +1,8 @@
 # Sources and update procedure
 
-Source baseline reviewed 2026-09-28. [`config/sources.tsv`](../config/sources.tsv) is the only executable allowlist for native installers, distributions, metadata endpoints, and the Powerlevel10k repository. Editing a link in this document does not change installer behavior. Any source change must also update the manifest fixture and pass the repository checks.
+Source baseline reviewed 2026-10-27. [`config/sources.tsv`](../config/sources.tsv) is the only executable allowlist for native installers, distributions, metadata endpoints, and the Powerlevel10k repository. Editing a link in this document does not change installer behavior. Any source change must also update the manifest fixture and pass the repository checks.
 
-Homebrew formulae and casks use the source declared by their official definitions. The default Doubao flow reads current cask metadata from Homebrew's official JSON API, while optional `--with-sogou` reads the local cask metadata. Both additionally restrict the resolved URL to its official distribution prefix in `sources.tsv` and download the fixed-checksum ZIP without installing it.
+Homebrew formulae and casks use the source declared by their official definitions. The default Doubao flow reads current cask metadata from Homebrew's official JSON API, accepts both its original build-only filename and its current build-plus-release filename, and requires every filename component to match the corresponding cask version field. Optional `--with-sogou` reads the local cask metadata. Both additionally restrict the resolved URL to its official distribution prefix in `sources.tsv` and download the fixed-checksum ZIP without installing it.
 
 ## Installer and configuration sources
 
@@ -34,7 +34,7 @@ Homebrew formulae and casks use the source declared by their official definition
 
 Default mode checks each selected desktop app and downloads an official DMG when it is absent. Docker Desktop requires `--with-docker` after the user reviews the current vendor terms. iTerm2 and VS Code use casks. AI CLIs prefer official scripts. `--managed-desktop` enables app placement and managed Kiro hooks without selecting Docker.
 
-ChatGPT uses the fixed official DMG path and its appcast. Kiro selects the stable arm64 DMG from the official download page. Claude Desktop is accessed only with `--with-claude`, first through the vendor's latest-DMG redirect and then through the official release feed as a fallback. Chrome and selected Docker Desktop use official rolling DMG addresses. A normal rerun reuses selected packages whose digests still match; `--update` refreshes them.
+ChatGPT uses the fixed official DMG path and its appcast. Kiro selects the exact current stable arm64 DMG from the vendor's architecture-specific release metadata. Claude Desktop is accessed only with `--with-claude`, first through the vendor's latest-DMG redirect and then through the official release feed as a fallback. Chrome and selected Docker Desktop use official rolling DMG addresses. A normal rerun reuses selected packages whose digests still match; `--update` refreshes them.
 
 Claude Code and Codex use their own native installers and metadata. Default Kiro CLI runs the vendor installer and preserves its replacement prompt and onboarding. Managed Kiro resolves a digest from the official stable manifest. Recorded hashes support caching and audit; they do not represent an independent vendor signature.
 

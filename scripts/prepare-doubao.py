@@ -31,10 +31,15 @@ def metadata():
     prefix = sources['doubao-input-download']
     match = re.fullmatch(
         r'https://lf-wave\.doubaocdn\.com/obj/doubao-ime/app/macos/'
-        r'DoubaoImeInstaller_v([0-9]+)_release\.zip', item['url'])
+        r'DoubaoImeInstaller_v([0-9]+)_release'
+        r'(?:_([0-9]+(?:_[0-9]+)*))?\.zip', item['url'])
     versions = item['version'].split(',')
+    release = match.group(2) if match else None
+    release_matches = ((len(versions) == 2 and release is None)
+                       or (len(versions) == 3 and release == versions[2]
+                           and re.fullmatch(r'[0-9]+(?:_[0-9]+)*', versions[2])))
     if (item['token'] != 'doubaoime' or not item['url'].startswith(prefix) or not match
-            or len(versions) != 2 or not re.fullmatch(r'[0-9]+(?:\.[0-9]+)+', versions[0])
+            or not release_matches or not re.fullmatch(r'[0-9]+(?:\.[0-9]+)+', versions[0])
             or not re.fullmatch(r'[0-9]+', versions[1]) or match.group(1) != versions[1]
             or not re.fullmatch(r'[a-f0-9]{64}', item['sha256'])):
         raise ValueError('Doubao source/checksum format changed; review the official cask before updating.')

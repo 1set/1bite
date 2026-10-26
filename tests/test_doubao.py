@@ -22,6 +22,7 @@ class DoubaoTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.directory = Path(temporary.name) / 'packages'
         self.build = '1000103'
+        self.release = '20261010_175807_23027789'
         stream = io.BytesIO()
         with zipfile.ZipFile(stream, 'w') as archive:
             root = f'DoubaoImeInstaller_v{self.build}.app'
@@ -34,9 +35,9 @@ class DoubaoTests(unittest.TestCase):
         self.payload = stream.getvalue()
         self.item = {
             'token': 'doubaoime',
-            'version': f'1.0.1,{self.build}',
+            'version': f'1.0.1,{self.build},{self.release}',
             'url': ('https://lf-wave.doubaocdn.com/obj/doubao-ime/app/macos/'
-                    f'DoubaoImeInstaller_v{self.build}_release.zip'),
+                    f'DoubaoImeInstaller_v{self.build}_release_{self.release}.zip'),
             'sha256': hashlib.sha256(self.payload).hexdigest(),
         }
 
@@ -48,14 +49,29 @@ class DoubaoTests(unittest.TestCase):
             self.assertEqual(command[0], 'curl')
             self.assertIn('https://formulae.brew.sh/api/cask/doubaoime.json', command)
             self.assertIn('--proto', command)
+        legacy = dict(
+            self.item,
+            version=f'1.0.1,{self.build}',
+            url=('https://lf-wave.doubaocdn.com/obj/doubao-ime/app/macos/'
+                 f'DoubaoImeInstaller_v{self.build}_release.zip'),
+        )
+        with patch.object(doubao.subprocess, 'check_output', return_value=json.dumps(legacy)):
+            self.assertEqual(doubao.metadata(), (legacy, '1.0.1', self.build))
         invalid = [
             ('token', 'another-app'),
             ('sha256', 'no_check'),
             ('version', '1.0.1'),
-            ('version', '1.0.1,999'),
+            ('version', f'1.0.1,{self.build}'),
+            ('version', f'1.0.1,999,{self.release}'),
+            ('version', f'1.0.1,{self.build},20261010_175807_00000000'),
+            ('version', f'1.0.1,{self.build},{self.release},extra'),
             ('url', 'http://lf-wave.doubaocdn.com/obj/doubao-ime/app/macos/file.zip'),
             ('url', 'https://lf-wave.doubaocdn.com.attacker.invalid/obj/doubao-ime/app/macos/file.zip'),
             ('url', 'https://lf-wave.doubaocdn.com/obj/doubao-ime/app/macos/../file.zip'),
+            ('url', ('https://lf-wave.doubaocdn.com/obj/doubao-ime/app/macos/'
+                     f'DoubaoImeInstaller_v{self.build}_release.zip')),
+            ('url', ('https://lf-wave.doubaocdn.com/obj/doubao-ime/app/macos/'
+                     f'DoubaoImeInstaller_v{self.build}_release_20261010_bad.zip')),
         ]
         for field, value in invalid:
             with self.subTest(field=field, value=value):
