@@ -65,9 +65,8 @@ git describe --tags --exact-match
 
 The checker uses `ls-remote` and does not fetch commits, so it reports a difference without guessing whether it can fast-forward. Resolve divergence and local changes deliberately. Never automate `reset --hard`, forced replacement, or a force push. ZIP copies, forks, and checkouts without an origin require manual maintenance.
 
-Read the new README and [`sources.md`](sources.md). Add newly required files to any external configuration directory and review changes instead of replacing that directory wholesale. Managed env, shell, Zsh, Vim, iTerm2, and Obsidian starter files can be reapplied after review; merge private Claude, Codex, Kiro, VS Code, and existing vault changes manually.
+Read the new README and [`sources.md`](sources.md). Add newly required files to any external configuration directory and review changes instead of replacing that directory wholesale. Managed env, shell, Zsh, Vim, iTerm2, and Obsidian starter files can be reapplied after review; merge private Claude, Codex, VS Code, and existing vault changes manually. Kiro applications and settings are outside One Bite management and remain untouched.
 
-Kiro CLI hooks are managed by their dedicated installer and verifier, not by overwriting private CLI JSON. When the vendor changes initialization or permissions, update the implementation and contract tests together and verify the actual loaded CLI.
 
 ## Suggested schedule
 
@@ -75,7 +74,7 @@ Kiro CLI hooks are managed by their dedicated installer and verifier, not by ove
 | --- | --- |
 | Weekly, before a new project, or after a failure | Run `--check-updates`; add `--diagnose` and `--verify` when behavior is abnormal |
 | Monthly or for a needed security fix | Save work, close affected apps, keep a pre-update report, run `--update`, and keep the post-update report |
-| After a major macOS, selected container engine, Kiro, or terminal change | Test the selected engine, terminal keys and completion, AI sign-in, and permission prompts on the Mac |
+| After a major macOS, selected container engine, AI tool, or terminal change | Test the selected engine, terminal keys and completion, AI sign-in, and permission prompts on the Mac |
 | After changing the installer or sources | Bump the patch version, update manifest and configuration fixtures, run build/test/format, then validate the same candidate in isolation |
 
 One Bite does not install a background auto-updater, grant permissions, remove pins, clear caches, or bulk-uninstall rollback versions. A failed update preserves completed work; fix the logged problem and rerun the same command. Reverting the One Bite Git checkout does not revert already installed software.

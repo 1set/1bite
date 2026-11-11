@@ -175,7 +175,7 @@ class ConfigurationTests(unittest.TestCase):
         self.apply()
         self.assertEqual(before, self.snapshot())
         configure.verify(self.home, with_claude=True)
-        for path in ('.claude/settings.json', '.codex/config.toml', '.kiro/settings/permissions.yaml'):
+        for path in ('.claude/settings.json', '.codex/config.toml'):
             self.assertEqual((self.home / path).stat().st_mode & 0o777, 0o600)
         self.assertFalse((self.home / '.codex/auth.json').exists())
 
@@ -364,62 +364,12 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result_file.read_text().splitlines(), ['1', '1', '4', '4', '0', '0'])
 
-    def test_kiro_policy_reporting_and_missing_empty_or_symlink_rejection(self):
-        self.apply()
-        self.assertEqual(configure.kiro_policy_status(self.home), 'default-ask')
-        policy = self.home / configure.KIRO_PATH
-        policy.write_text('rules:\n  - capability: shell\n    effect: allow\n')
-        output = io.StringIO()
-        with contextlib.redirect_stdout(output):
-            configure.configure(self.home, ROOT / 'config')
-            configure.verify(self.home, with_claude=True)
-        self.assertIn('not audited', output.getvalue())
-        self.assertEqual(configure.kiro_policy_status(self.home), 'custom-unreviewed')
-        policy.write_text('   \n')
-        before = self.snapshot()
-        with self.assertRaises(ValueError):
-            self.apply()
-        self.assertEqual(self.snapshot(), before)
-        policy.unlink()
-        with self.assertRaises(FileNotFoundError):
-            configure.verify(self.home, with_claude=True)
-        for path in (policy, policy.parent, policy.parent.parent):
-            with self.subTest(path=path):
-                if path.is_dir():
-                    path.rmdir()
-                path.symlink_to(self.home / 'missing')
-                with self.assertRaises(ValueError):
-                    self.apply()
-                with self.assertRaises(ValueError):
-                    configure.verify(self.home, with_claude=True)
-                path.unlink()
-
-    def test_kiro_external_rule_contract(self):
-        capabilities = ('all', 'builtin', 'filesystem', 'fs_read', 'fs_write', 'shell', 'web_fetch',
-                        'web_search', 'mcp', 'subagent', 'skill', 'power', 'context', 'diagnostics', 'sandbox_network')
-        for capability in capabilities:
-            for effect in ('ask', 'deny', 'allow'):
-                configure.validate_kiro(json.dumps({'rules': [dict(capability=capability, effect=effect,
-                                                                 match=['*'], exclude=['example'])]}))
-        invalid = [None, [], {}, {'rules': []}, {'rules': {}}, {'rules': [], 'extra': True}]
-        rules = [None, {}, {'capability': 'all'}, {'effect': 'ask'},
-                 {'capability': [], 'effect': 'ask'}, {'capability': 'unknown', 'effect': 'ask'},
-                 {'capability': 'all', 'effect': []}, {'capability': 'all', 'effect': 'trust'},
-                 {'capability': 'all', 'effect': 'ask', 'extra': True}]
-        for key in ('match', 'exclude'):
-            rules += [dict(capability='all', effect='ask', **{key: value})
-                      for value in (None, '*', [], [''], [1])]
-        invalid += [{'rules': [rule]} for rule in rules]
-        for value in invalid:
-            with self.subTest(value=value), self.assertRaises(ValueError):
-                configure.validate_kiro(json.dumps(value))
-
     def test_invalid_external_config_does_not_write(self):
         external = self.home / 'external'
         shutil.copytree(ROOT / 'config', external)
         for name, invalid in [('claude-settings.json', '[]'),
                               ('codex-config.toml', 'bad = ['),
-                              ('kiro-permissions.json', '{}'), ('iterm2-profile.json', '{}'), ('vscode-settings.json', '[]')]:
+                              ('iterm2-profile.json', '{}'), ('vscode-settings.json', '[]')]:
             with self.subTest(name=name):
                 path = external / name
                 original = path.read_text()
@@ -773,8 +723,7 @@ echo "ACTION $STEP_ACTION"
 
     def test_ai_installation_dispatch_skips_healthy_and_propagates_failure(self):
         commands = ('check_agent claude', 'check_agent codex',
-                    'ensure_cask chatgpt ChatGPT.app', 'ensure_cask kiro Kiro.app',
-                    "ensure_cask kiro-cli 'Kiro CLI.app'")
+                    'ensure_cask chatgpt ChatGPT.app')
         for command in commands:
             for healthy, update, status in [('true', 'false', 0), ('false', 'false', 0),
                                             ('true', 'true', 0), ('false', 'true', 23)]:
@@ -889,24 +838,6 @@ input_method_healthy SogouInput.app com.sogou.inputmethod.sogou || echo SOGOU-MI
         self.assertEqual(result.stdout.splitlines(),
                          [str(Path.home() / 'Library/Input Methods/DoubaoIme.app'), 'SOGOU-MISSING'])
 
-    def test_default_kiro_uses_vendor_installer_without_managed_hooks(self):
-        result = self.run_shell("""
-DESKTOP_MODE=download
-app_healthy() { [[ -f "$TEST_STATE/healthy" ]]; }
-download_installer() { echo "DOWNLOAD $1"; }
-run_package_installer() { echo "VENDOR $1"; touch "$TEST_STATE/healthy"; }
-python3() { echo WRONG; return 91; }
-agent_healthy() { return 1; }
-ensure_cask kiro-cli 'Kiro CLI.app'
-ensure_kiro_shell
-echo "MANUAL $MANUAL_STEPS"
-""")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn('DOWNLOAD kiro-cli', result.stdout)
-        self.assertIn('VENDOR /bin/bash', result.stdout)
-        self.assertIn('kiro-cli-onboarding', result.stdout)
-        self.assertNotIn('WRONG', result.stdout)
-
     def test_failures_do_not_continue(self):
         for script in [
             'brew() { return 1; }; ensure_formula go',
@@ -1016,7 +947,7 @@ bash -c '[[ "$HOMEBREW_NO_ASK" == 1 && -z "${HOMEBREW_ASK+x}" ]]'
     def test_entire_managed_package_surface_uses_official_names(self):
         formulae = (ROOT / 'config/formulae.txt').read_text().split()
         casks = [line.split('\t')[0] for line in (ROOT / 'config/casks.tsv').read_text().splitlines()
-                 if line.split('\t')[0] not in ('chatgpt', 'kiro', 'kiro-cli', 'claude-desktop')]
+                 if line.split('\t')[0] not in ('chatgpt', 'claude-desktop')]
         for kind, names in [('formula', formulae), ('cask', casks)]:
             for name in names:
                 for installed, healthy, update, operation in [
@@ -1301,7 +1232,6 @@ ensure_font_cask() { :; }
 ensure_ohmyzsh() { :; }
 ensure_powerlevel10k() { :; }
 ensure_neofetch() { :; }
-ensure_kiro_shell() { :; }
 ensure_extension() { :; }
 git() { :; }
 ensure_git_lfs_filters() { :; }
@@ -1313,7 +1243,7 @@ prepare_doubao_input_installer() { echo DOUBAO-PREPARED; }
 execute_mode
 echo "TOTAL $COMPLETED_STEPS $STEP_TOTAL"
 """
-        default_count = (12 + len((ROOT / 'config/formulae.txt').read_text().split())
+        default_count = (11 + len((ROOT / 'config/formulae.txt').read_text().split())
                          + len((ROOT / 'config/casks.tsv').read_text().splitlines())
                          + len((ROOT / 'config/font-casks.tsv').read_text().splitlines())
                          + len((ROOT / 'config/vscode-extensions.txt').read_text().split()) - 3)
@@ -1406,49 +1336,6 @@ echo "ACTION $STEP_ACTION"
         self.assertIn('ACTION preserved', result.stdout)
         self.assertNotIn('WRONG', result.stdout)
 
-    def test_kiro_locations_versions_identity_and_manager_actions(self):
-        for compatible in ('/Applications/Kiro.app', str(Path.home() / 'Applications/Kiro.app')):
-            result = self.run_shell('COMPATIBLE=' + shlex.quote(compatible) + '; ' + """
-bundle_healthy() { return 0; }
-bundle_identifier() { echo dev.kiro.desktop; }
-bundle_version() { if [[ "$1" == "$COMPATIBLE" ]]; then echo 1.0.437; else echo 0.9.1; fi; }
-app_path Kiro.app
-""")
-            self.assertEqual(result.stdout.strip(), compatible)
-        for system, user in [('true', 'false'), ('false', 'true'), ('true', 'true'), ('false', 'false')]:
-            for version in ('0.9.1', '1.0.437', '2.0.0', 'invalid'):
-                for identity in ('dev.kiro.desktop', 'other.application'):
-                    script = f'SYSTEM={system}; USER_APP={user}; VERSION={version}; IDENTITY={identity}; ' + """
-bundle_healthy() {
-  if [[ "$1" == /Applications/Kiro.app ]]; then [[ "$SYSTEM" == true ]];
-  elif [[ "$1" == "$HOME/Applications/Kiro.app" ]]; then [[ "$USER_APP" == true ]];
-  else return 1; fi
-}
-bundle_version() { echo "$VERSION"; }
-bundle_identifier() { echo "$IDENTITY"; }
-"""
-                    selected_user = system == 'false' and user == 'true'
-                    result = self.run_shell(script + 'app_path Kiro.app')
-                    expected = str(Path.home() / 'Applications/Kiro.app') if selected_user else '/Applications/Kiro.app'
-                    self.assertEqual(result.stdout.strip(), expected)
-                    healthy = (system == 'true' or user == 'true') and version[0] in '12' and identity == 'dev.kiro.desktop'
-                    result = self.run_shell(script + 'app_healthy Kiro.app')
-                    self.assertEqual(result.returncode == 0, healthy, result.stderr)
-                    if not healthy and selected_user:
-                        result = self.run_shell(script + 'python3() { return 1; }; brew() { echo WRONG; }; ensure_cask kiro Kiro.app')
-                        self.assertNotEqual(result.returncode, 0)
-                        self.assertNotIn('WRONG', result.stdout)
-                    if not healthy:
-                        continue
-                    for managed in ('true', 'false'):
-                        for update in ('true', 'false'):
-                            result = self.run_shell(script + f'DESKTOP_MODE=managed; MANAGED={managed}; UPDATE={update}; ' + """
-brew() { if [[ "$1" == list ]]; then [[ "$MANAGED" == true ]]; else echo "MUTATE $*"; fi; }
-python3() { echo preserved; }
-ensure_cask kiro Kiro.app
-""")
-                            self.assertEqual(result.returncode, 0, result.stderr)
-                            self.assertNotIn('MUTATE', result.stdout)
     def test_platform_contract(self):
         for arch, version, uid, accepted in [('arm64', '26.6.2', 501, True), ('arm64', '27.0', 501, True),
                                              ('arm64', '15.7', 501, False), ('x86_64', '26.6.2', 501, False),

@@ -22,7 +22,6 @@ STATES = ('current', 'update_available', 'ahead', 'missing', 'repair_needed', 'd
 TEMPLATES = {
     'claude-settings.json': ('CLAUDE_CONFIG_DIR', '.claude/settings.json', True),
     'codex-config.toml': ('CODEX_HOME', '.codex/config.toml', True),
-    'kiro-permissions.json': (None, '.kiro/settings/permissions.yaml', True),
     'env.zsh': (None, '.config/1bite/env.zsh', False),
     'shell.zsh': (None, '.config/1bite/shell.zsh', False),
     'zsh/framework.zsh': (None, '.config/1bite/zsh/framework.zsh', False),
@@ -49,7 +48,7 @@ TEMPLATES = {
     'obsidian-vault/_attachments/.gitkeep': (None, '.config/1bite/obsidian-vault/_attachments/.gitkeep', False),
     'obsidian-vault/_templates/.gitkeep': (None, '.config/1bite/obsidian-vault/_templates/.gitkeep', False),
 }
-EXTERNAL_APPS = {'chatgpt', 'kiro', 'kiro-cli', 'claude-desktop'}
+EXTERNAL_APPS = {'chatgpt', 'claude-desktop'}
 
 
 def command(*args):
@@ -268,7 +267,7 @@ class Checker:
                 state, note = 'manual', 'Upstream formula is disabled/deprecated; review replacement before updating.'
             self.add('formula:' + name, installed, latest, 'homebrew', state, note)
         with ThreadPoolExecutor(max_workers=5) as executor:
-            names = ('chatgpt', 'kiro', 'kiro-cli', 'codex') + (('claude-desktop', 'claude') if self.with_claude else ())
+            names = ('chatgpt', 'codex') + (('claude-desktop', 'claude') if self.with_claude else ())
             official = dict(zip(names, executor.map(
                 lambda name: self.attempt('official:' + name, official_ai.release, name, self.sources), names)))
         for name, app in casks:

@@ -16,8 +16,6 @@ APPS = {
                       'Open Chrome from Applications; sign in if wanted and choose the default browser yourself.'),
     'chatgpt': ('ChatGPT / Codex desktop app', 'ChatGPT.app or Codex.app from the mounted image',
                 'Open the installed app from Applications, sign in, and approve permissions as needed.'),
-    'kiro': ('Kiro IDE', 'Kiro.app',
-             'Open Kiro from Applications and complete sign-in and first-use setup. Initialize the IDE and Kiro CLI separately.'),
     'claude-desktop': ('Claude Desktop', 'Claude.app',
                        'Open Claude from Applications and sign in. Complete desktop and Claude Code CLI sign-in separately.'),
 }
@@ -51,13 +49,13 @@ def instructions(run_dir, config_dir, home=None, root=ROOT):
     docker = result.get('with_docker') is True
     pending = list(dict.fromkeys(name for name in result.get('manual_steps', [])
                                 if name in (*APPS, 'doubao-input-installer', 'sogou-installer',
-                                            'kiro-cli-onboarding', 'powerlevel10k-configure')
+                                            'powerlevel10k-configure')
                                 and (name != 'claude-desktop' or claude)
                                 and (name != 'docker-desktop' or docker)))
     rows = read_json(run_dir / 'desktop-installers.json', [])
     packages = {row.get('component'): row for row in rows if isinstance(row, dict)} if isinstance(rows, list) else {}
     lines = []
-    downloads = [name for name in pending if name not in ('kiro-cli-onboarding', 'powerlevel10k-configure')]
+    downloads = [name for name in pending if name != 'powerlevel10k-configure']
     if downloads:
         lines += ['[MANUAL] These packages are ready, but you must still install them:',
                   'A completed download does not mean the application is installed. Complete each item below; the commands are shown for you to copy and are not run automatically.',
@@ -120,10 +118,6 @@ def instructions(run_dir, config_dir, home=None, root=ROOT):
             lines += ['- Claude Code CLI: run claude in a new terminal and complete sign-in.']
         if docker and 'docker-desktop' not in downloads:
             lines += ['- Docker Desktop: run open -a Docker, complete first-run setup, and wait for the engine to start.']
-    if complete or 'kiro-cli-onboarding' in pending:
-        lines += ['- Kiro CLI: run kiro-cli launch in a new terminal and complete the vendor sign-in and shell integration.',
-                  '  If the command is not found, run open -a "Kiro CLI" to finish onboarding, then open a new terminal and retry.',
-                  '  Run kiro-cli doctor --all for diagnostics. Approve only the system permissions you need.']
     if complete:
         command = ['/bin/bash', str(root / '1bite'), '--verify']
         if claude:

@@ -44,7 +44,7 @@ Powerlevel10k is installed after Oh My Zsh; existing explicit themes are preserv
 --battery         Run battery diagnostics; supports --summary/--json/--tsv/--shell/--field.
 --install-battery Install ~/.local/bin/1bite-battery; add --update to replace an unchanged managed copy.
 --update          Update managed tools and refresh desktop DMGs (install mode only).
---managed-desktop Automatically place desktop apps and configure Kiro hooks (explicit opt-in).
+--managed-desktop Automatically place selected desktop apps (explicit opt-in).
 --check-updates   Report available versions and configuration drift; never upgrade.
 --with-docker     Include Docker Desktop (disabled by default; review its license terms).
 --with-claude     Include Claude Desktop and Claude Code CLI (disabled by default).
@@ -368,7 +368,6 @@ bundle_healthy() {
 }
 
 bundle_identifier() { /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$1/Contents/Info.plist" 2>/dev/null; }
-bundle_version() { /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$1/Contents/Info.plist" 2>/dev/null; }
 
 input_method_path() {
   local app=$1 identifier=$2 candidate
@@ -383,41 +382,8 @@ input_method_path() {
 
 input_method_healthy() { input_method_path "$1" "$2" >/dev/null; }
 
-kiro_bundle_healthy() {
-  local path=$1 version
-  bundle_healthy "$path" || return 1
-  [[ $(bundle_identifier "$path") == dev.kiro.desktop ]] || return 1
-  version=$(bundle_version "$path") || return 1
-  [[ "$version" =~ ^[1-9][0-9]*\. ]] || return 1
-}
-
-kiro_cli_bundle_healthy() {
-  local directory=$1 executable
-  bundle_healthy "$directory" || return 1
-  [[ $(bundle_identifier "$directory") == com.amazon.codewhisperer ]] || return 1
-  for executable in kiro-cli kiro-cli-chat kiro-cli-term; do
-    "$directory/Contents/MacOS/$executable" --version >/dev/null 2>&1 || return 1
-  done
-}
-
 app_path() {
   local app=$1 candidate
-  if [[ "$app" == Kiro.app ]]; then
-    for candidate in /Applications/Kiro.app "$HOME/Applications/Kiro.app"; do
-      if kiro_bundle_healthy "$candidate"; then
-        printf '%s\n' "$candidate"
-        return
-      fi
-    done
-  fi
-  if [[ "$app" == 'Kiro CLI.app' ]]; then
-    for candidate in '/Applications/Kiro CLI.app' "$HOME/Applications/Kiro CLI.app"; do
-      if kiro_cli_bundle_healthy "$candidate"; then
-        printf '%s\n' "$candidate"
-        return
-      fi
-    done
-  fi
   if [[ "$app" == Claude.app ]]; then
     for candidate in /Applications/Claude.app "$HOME/Applications/Claude.app"; do
       if bundle_healthy "$candidate" && [[ $(bundle_identifier "$candidate") == com.anthropic.claudefordesktop ]]; then
@@ -433,7 +399,7 @@ app_path() {
         return
       fi
     done
-  elif [[ "$app" == 'Google Chrome.app' || "$app" == 'Visual Studio Code.app' || "$app" == 'Obsidian.app' || "$app" == Kiro.app || "$app" == 'Kiro CLI.app' ]] && ! bundle_healthy "/Applications/$app" && bundle_healthy "$HOME/Applications/$app"; then
+  elif [[ "$app" == 'Google Chrome.app' || "$app" == 'Visual Studio Code.app' || "$app" == 'Obsidian.app' ]] && ! bundle_healthy "/Applications/$app" && bundle_healthy "$HOME/Applications/$app"; then
     printf '%s\n' "$HOME/Applications/$app"
     return
   fi
@@ -449,12 +415,6 @@ app_healthy() {
   if [[ "$app" == Claude.app ]]; then
     [[ $(bundle_identifier "$(app_path "$app")") == com.anthropic.claudefordesktop ]] || return 1
   fi
-  if [[ "$app" == Kiro.app ]]; then
-    kiro_bundle_healthy "$(app_path "$app")" || return 1
-  fi
-  if [[ "$app" == 'Kiro CLI.app' ]]; then
-    kiro_cli_bundle_healthy "$(app_path "$app")" || return 1
-  fi
   if [[ "$app" == Docker.app ]]; then
     /Applications/Docker.app/Contents/Resources/bin/docker --version >/dev/null 2>&1 || return 1
     /Applications/Docker.app/Contents/Resources/cli-plugins/docker-compose version >/dev/null 2>&1 || return 1
@@ -463,7 +423,7 @@ app_healthy() {
 }
 
 manual_desktop() {
-  case "$1" in docker-desktop | google-chrome | chatgpt | kiro | claude-desktop) return 0 ;; esac
+  case "$1" in docker-desktop | google-chrome | chatgpt | claude-desktop) return 0 ;; esac
   return 1
 }
 
@@ -481,36 +441,15 @@ prepare_desktop() {
   MANUAL_STEPS="$MANUAL_STEPS $package"
 }
 
-ensure_vendor_kiro() {
-  local installer
-  if app_healthy 'Kiro CLI.app'; then
-    echo 'Preserving Kiro CLI; its official app/CLI handles updates and onboarding.'
-    STEP_ACTION=preserved
-    return
-  fi
-  # Keep the vendor's own replacement prompts, launch and integration behavior.
-  installer=$(mktemp)
-  download_installer kiro-cli "$installer"
-  run_package_installer /bin/bash "$installer"
-  rm -f "$installer"
-  hash -r
-  app_healthy 'Kiro CLI.app' || fail 'Kiro official installer did not produce a runnable application.'
-  STEP_ACTION=installed
-}
-
 ensure_cask() {
   local package=$1 app=$2
   if [[ "$DESKTOP_MODE" == download ]] && manual_desktop "$package"; then
     prepare_desktop "$package" "$app"
     return
   fi
-  if [[ "$package" == kiro-cli && "$DESKTOP_MODE" == download ]]; then
-    ensure_vendor_kiro
-    return
-  fi
   # Resolve AI installations directly from their official vendor sources.
   case "$package" in
-    chatgpt | kiro | kiro-cli | claude-desktop)
+    chatgpt | claude-desktop)
       ensure_official_app "$package" "$app"
       return
       ;;
@@ -603,17 +542,6 @@ check_agent() {
   agent_healthy "$name" || fail "Official installation did not produce a runnable $name."
 }
 
-ensure_kiro_shell() {
-  if [[ "$DESKTOP_MODE" == download ]]; then
-    echo 'Kiro shell integration is handled by its official app. Complete onboarding there.'
-    STEP_ACTION=preserved
-    if ! agent_healthy kiro-cli; then MANUAL_STEPS="$MANUAL_STEPS kiro-cli-onboarding"; fi
-    return
-  fi
-  STEP_ACTION=$(python3 "$ROOT/scripts/kiro-shell.py" --app "$(app_path 'Kiro CLI.app')")
-  echo 'Kiro Zsh hooks ready. First launch and system permissions remain manual; see README.'
-}
-
 apply_configuration() { python3 "$ROOT/scripts/configure.py" --config-dir "$CONFIG_DIR"; }
 verify_installation() {
   export DESKTOP_MODE
@@ -671,7 +599,7 @@ execute_mode() {
       step_run verification verify_installation
       ;;
     install)
-      STEP_TOTAL=$((12 + $(awk 'NF { n++ } END { print n+0 }' "$ROOT/config/formulae.txt") + $(awk 'NF { n++ } END { print n+0 }' "$ROOT/config/casks.tsv") + $(awk 'NF { n++ } END { print n+0 }' "$ROOT/config/font-casks.tsv") + $(awk 'NF { n++ } END { print n+0 }' "$ROOT/config/vscode-extensions.txt")))
+      STEP_TOTAL=$((11 + $(awk 'NF { n++ } END { print n+0 }' "$ROOT/config/formulae.txt") + $(awk 'NF { n++ } END { print n+0 }' "$ROOT/config/casks.tsv") + $(awk 'NF { n++ } END { print n+0 }' "$ROOT/config/font-casks.tsv") + $(awk 'NF { n++ } END { print n+0 }' "$ROOT/config/vscode-extensions.txt")))
       if [[ "$WITH_DOCKER" != true ]]; then STEP_TOTAL=$((STEP_TOTAL - 1)); fi
       if [[ "$WITH_CLAUDE" != true ]]; then STEP_TOTAL=$((STEP_TOTAL - 2)); fi
       if [[ "$WITH_SOGOU" == true ]]; then STEP_TOTAL=$((STEP_TOTAL + 1)); fi
@@ -690,7 +618,6 @@ execute_mode() {
       step_run configuration apply_configuration
       step_run ohmyzsh ensure_ohmyzsh
       step_run powerlevel10k ensure_powerlevel10k
-      step_run kiro-shell ensure_kiro_shell
       install_extensions
       if [[ "$WITH_CLAUDE" == true ]]; then step_run claude check_agent claude; fi
       step_run codex check_agent codex
@@ -772,7 +699,7 @@ main() {
     echo "Final step: prepare the official Doubao Input Method ZIP in $HOME/Downloads/1bite; install and enable it manually."
     echo 'Claude Desktop and Claude Code CLI require --with-claude, including verification and updates.'
     echo 'Docker Desktop requires --with-docker, including installation, verification and updates; review its current license terms first.'
-    echo '--managed-desktop opts into automatic desktop placement and Kiro shell integration.'
+    echo '--managed-desktop opts into automatic placement of selected desktop applications.'
     echo '--update refreshes recorded official installations; existing unmanaged copies are preserved.'
     echo "Logs: $LOG_ROOT"
     if [[ "$WITH_SOGOU" == true ]]; then

@@ -12,15 +12,13 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from urllib.parse import quote, urlsplit
+from urllib.parse import urlsplit
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
 APPS = {
     'claude-desktop': ('Claude.app', 'com.anthropic.claudefordesktop', ('Claude.app',)),
     'chatgpt': ('ChatGPT.app', 'com.openai.codex', ('ChatGPT.app', 'Codex.app')),
-    'kiro': ('Kiro.app', 'dev.kiro.desktop', ('Kiro.app',)),
-    'kiro-cli': ('Kiro CLI.app', 'com.amazon.codewhisperer', ('Kiro CLI.app',)),
 }
 SPARKLE = '{http://www.andymatuschak.org/xml-namespaces/sparkle}'
 APPLICATIONS = Path('/Applications')
@@ -85,40 +83,6 @@ def release(name, catalog=None, fetch=fetch_text):
             raise ValueError('No stable Apple Silicon ChatGPT release in official feed')
         _, _, version, build = max(entries)
         return dict(version=version, build=build, url=catalog['chatgpt-download'])
-    if name == 'kiro':
-        data = json.loads(fetch(catalog['kiro-releases']))
-        if not isinstance(data, dict):
-            raise ValueError('Unexpected Kiro stable release metadata')
-        version = data.get('currentRelease')
-        releases = data.get('releases')
-        if (not isinstance(version, str) or not re.fullmatch(r'\d+\.\d+\.\d+', version)
-                or not isinstance(releases, list) or not all(isinstance(item, dict) for item in releases)):
-            raise ValueError('Unexpected Kiro stable release metadata')
-        version_key(version)
-        entries = [item['updateTo'] for item in releases
-                   if item.get('version') == version and isinstance(item.get('updateTo'), dict)]
-        if len(entries) != 1 or entries[0].get('version') != version:
-            raise ValueError('Unexpected Kiro stable release metadata')
-        prefix = catalog['kiro-distribution']
-        url = official_url(entries[0].get('url', ''), prefix)
-        expected = f'releases/stable/darwin-arm64/signed/{version}/kiro-ide-{version}-stable-darwin-arm64.dmg'
-        if url[len(prefix):] != expected:
-            raise ValueError('Unexpected Kiro stable Apple Silicon DMG')
-        return dict(version=version, url=url)
-    if name == 'kiro-cli':
-        data = json.loads(fetch(catalog['kiro-cli-releases']))
-        version = data['version']
-        version_key(version)
-        entries = [item for item in data['packages'] if item.get('os') == 'macos'
-                   and item.get('architecture') in ('universal', 'aarch64', 'arm64')
-                   and item.get('fileType') == 'dmg' and item.get('channel') == 'stable']
-        if len(entries) != 1 or entries[0]['download'] != version + '/Kiro CLI.dmg':
-            raise ValueError('Unexpected Kiro CLI stable manifest')
-        digest = entries[0]['sha256']
-        if not re.fullmatch('[a-f0-9]{64}', digest):
-            raise ValueError('Missing official Kiro CLI SHA-256')
-        url = catalog['kiro-cli-distribution'] + quote(entries[0]['download'])
-        return dict(version=version, url=official_url(url, catalog['kiro-cli-distribution']), sha256=digest)
     if name == 'claude':
         version = fetch(catalog['claude-releases']).strip()
     elif name == 'codex':
@@ -242,10 +206,6 @@ def verify_bundle(name, app):
     version_key(info.get('CFBundleShortVersionString'))
     verify_signature(name, app)
     subprocess.run(['lipo', str(binary), '-verify_arch', 'arm64'], check=True)
-    if name == 'kiro-cli':
-        for binary_name in ('kiro-cli', 'kiro-cli-chat', 'kiro-cli-term'):
-            subprocess.run([str(app / 'Contents/MacOS' / binary_name), '--version'], check=True,
-                           stdout=subprocess.DEVNULL, timeout=30)
     return info
 
 

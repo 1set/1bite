@@ -50,17 +50,6 @@ if [[ "$WITH_CLAUDE" == true ]]; then claude --version; fi
 codex --version
 ob --help >/dev/null
 obn --help >/dev/null
-if agent_healthy kiro-cli; then
-  kiro-cli --version
-  zsh -lic 'command -v kiro-cli'
-elif [[ "${ONE_BITE_ALLOW_PREPARED_DESKTOPS:-}" == 1 ]]; then
-  echo 'Kiro CLI app is installed; complete official onboarding to expose its terminal commands.'
-else
-  fail 'Complete Kiro CLI official onboarding, then rerun verification.'
-fi
-if [[ "$DESKTOP_MODE" == managed ]]; then
-  python3 "$ROOT/scripts/kiro-shell.py" --verify --app "$(app_path 'Kiro CLI.app')"
-fi
 if [[ "$WITH_DOCKER" == true ]] && app_healthy Docker.app; then
   docker --version
   /Applications/Docker.app/Contents/Resources/cli-plugins/docker-compose version

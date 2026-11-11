@@ -48,46 +48,8 @@ class OfficialAITests(unittest.TestCase):
         xml = '<rss xmlns:s="http://www.andymatuschak.org/xml-namespaces/sparkle"><channel>' + feed('1.9.0', 1) + feed('1.10.0', 2) + feed('99.0.0', 3, 'x64') + '</channel></rss>'
         result = ai.release('chatgpt', catalog, lambda _: xml)
         self.assertEqual((result['version'], result['build'], result['url']), ('1.10.0', '2', catalog['chatgpt-download']))
-        version = '1.10.0'
-        url = catalog['kiro-distribution'] + f'releases/stable/darwin-arm64/signed/{version}/kiro-ide-{version}-stable-darwin-arm64.dmg'
-        kiro = dict(currentRelease=version,
-                    releases=[dict(version=version, updateTo=dict(version=version, url=url))])
-        requested = []
-        self.assertEqual(ai.release(
-            'kiro', catalog,
-            lambda source: requested.append(source) or json.dumps(kiro))['version'], version)
-        self.assertEqual(requested, [catalog['kiro-releases']])
-        for changed in (
-                [],
-                dict(currentRelease=version, releases={}),
-                dict(currentRelease='1.10', releases=kiro['releases']),
-                dict(currentRelease=version, releases=['invalid']),
-                dict(kiro, currentRelease='1.9.0'),
-                dict(kiro, releases=[]),
-                dict(kiro, releases=kiro['releases'] * 2),
-                dict(kiro, releases=[dict(version=version, updateTo=dict(
-                    version='1.9.0', url=url))]),
-                dict(kiro, releases=[dict(version=version, updateTo=dict(
-                    version=version, url='https://example.invalid/kiro.dmg'))]),
-                dict(kiro, releases=[dict(version=version, updateTo=dict(
-                    version=version, url=url.replace('/stable/', '/preview/')))]),
-                dict(kiro, releases=[dict(version=version, updateTo=dict(
-                    version=version, url=url.replace('arm64', 'x64')))])):
-            with self.assertRaises(ValueError):
-                ai.release('kiro', catalog, lambda _, value=changed: json.dumps(value))
         self.assertEqual(ai.release('codex', catalog, lambda _: '{"tag_name":"rust-v0.200.0"}')['version'], '0.200.0')
         self.assertEqual(ai.release('claude', catalog, lambda _: '2.5.0\n')['version'], '2.5.0')
-
-    def test_kiro_manifest_requires_stable_native_package_and_sha256(self):
-        package = dict(os='macos', architecture='universal', fileType='dmg', channel='stable',
-                       download='2.24.0/Kiro CLI.dmg', sha256='a' * 64)
-        data = dict(version='2.24.0', packages=[package])
-        result = ai.release('kiro-cli', fetch=lambda _: json.dumps(data))
-        self.assertTrue(result['url'].endswith('/2.24.0/Kiro%20CLI.dmg'))
-        for field, value in [('sha256', 'missing'), ('download', '../evil.dmg'), ('channel', 'preview'), ('architecture', 'x64')]:
-            invalid = dict(data, packages=[dict(package, **{field: value})])
-            with self.assertRaises(ValueError):
-                ai.release('kiro-cli', fetch=lambda _: json.dumps(invalid))
 
     def test_receipt_is_not_proof_of_health_and_is_private(self):
         with patch.object(ai, 'release', return_value=dict(version='2.0.0', url='https://vendor.invalid/app.dmg')), \
@@ -183,8 +145,8 @@ class OfficialAITests(unittest.TestCase):
             image = self.home / 'image.dmg'
             image.write_bytes(b'interrupted download')
             with self.assertRaisesRegex(ValueError, 'SHA-256'):
-                ai.download('kiro-cli', 'https://vendor.invalid/dmg', image, 'a' * 64)
-        self.assertFalse(ai.receipt_path('kiro-cli').exists())
+                ai.download('chatgpt', 'https://vendor.invalid/dmg', image, 'a' * 64)
+        self.assertFalse(ai.receipt_path('chatgpt').exists())
 
     def test_vendor_identity_and_signature_checked_before_any_placement(self):
         app = self.bundle(self.destination)
@@ -192,8 +154,6 @@ class OfficialAITests(unittest.TestCase):
             with self.assertRaises(subprocess.CalledProcessError):
                 ai.verify_bundle('chatgpt', app)
             self.assertEqual(run.call_count, 1)
-        with self.assertRaisesRegex(ValueError, 'identity'):
-            ai.verify_bundle('kiro', app)
 
     def test_missing_app_and_managed_damage_install_from_verified_temporary_bundle(self):
         staged = self.bundle(self.home / 'vendor/ChatGPT.app', '2.0.0')

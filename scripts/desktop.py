@@ -15,7 +15,6 @@ APPS = {
     'docker-desktop': 'Docker.app',
     'google-chrome': 'Google Chrome.app',
     'chatgpt': 'ChatGPT.app',
-    'kiro': 'Kiro.app',
     'claude-desktop': 'Claude.app',
 }
 

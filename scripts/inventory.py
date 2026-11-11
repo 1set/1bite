@@ -4,7 +4,6 @@ import json
 import os
 from pathlib import Path
 import subprocess
-from configure import kiro_policy_status
 from desktop import APPS as MANUAL_APPS
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -45,7 +44,7 @@ def inventory():
         apps[token] = output('/usr/libexec/PlistBuddy', '-c', 'Print :CFBundleShortVersionString',
                              f'{path}/Contents/Info.plist')
     tools = {}
-    for name in ('claude', 'codex', 'kiro-cli', 'docker'):
+    for name in ('claude', 'codex', 'docker'):
         if name == 'claude' and not with_claude:
             continue
         if name == 'docker' and not with_docker:
@@ -53,7 +52,7 @@ def inventory():
         try:
             tools[name] = output(name, '--version').splitlines()[0]
         except (OSError, subprocess.CalledProcessError):
-            if not allow_prepared or name not in ('kiro-cli', 'docker'):
+            if not allow_prepared or name != 'docker':
                 raise
             tools[name] = None
 
@@ -84,8 +83,7 @@ def inventory():
             'pending_applications': pending, 'with_claude': with_claude, 'with_docker': with_docker,
             'font_casks': font_casks,
             'vscode_extensions': extensions, 'ohmyzsh_revision': omz_revision,
-            'powerlevel10k_revision': p10k_revision,
-            'kiro_permission_template': kiro_policy_status(Path.home())}
+            'powerlevel10k_revision': p10k_revision}
 
 
 if __name__ == '__main__':

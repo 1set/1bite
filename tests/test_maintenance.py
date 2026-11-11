@@ -187,12 +187,12 @@ class MaintenanceTests(unittest.TestCase):
 
     def test_ai_tools_stay_with_official_installers_and_do_not_query_cask_versions(self):
         def fetch(url, payload=None):
-            for name in ('chatgpt', 'kiro', 'kiro-cli', 'claude-code', 'codex'):
+            for name in ('chatgpt', 'claude-code', 'codex'):
                 self.assertFalse(url.endswith('/cask/' + name + '.json'), url)
             return self.fetch(url, payload)
-        self.local['casks'] = [{'token': name} for name in ('chatgpt', 'kiro', 'kiro-cli')]
+        self.local['casks'] = [{'token': name} for name in ('chatgpt',)]
         rows = {item['component']: item for item in self.check(fetch)['items']}
-        for name in ('cask:chatgpt', 'cask:kiro', 'cask:kiro-cli', 'cli:claude', 'cli:codex'):
+        for name in ('cask:chatgpt', 'cli:claude', 'cli:codex'):
             self.assertEqual((rows[name]['manager'], rows[name]['status'], rows[name]['latest']),
                              ('original', 'current', '1.0.0'))
         shutil.rmtree(self.home / 'Applications/ChatGPT.app')

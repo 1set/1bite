@@ -28,12 +28,14 @@ Run the installer as your normal administrator account, without `sudo`. If `gh` 
 | Notes | Installs Obsidian and a reusable vault starter with Tokyo Night, the `wide` CSS snippet, portable vault settings, and empty attachment/template folders. |
 | Prompt and fonts | Installs Oh My Zsh, Powerlevel10k, MesloLGS Nerd Font, and JetBrains Mono Nerd Font while preserving personal themes and configuration. |
 | Input method | Prepares the checksum-verified official Doubao Input Method ZIP for manual installation, microphone permission, and activation. Sogou remains opt-in. |
-| AI command-line tools | Installs Codex CLI and Kiro CLI from their official installers. Claude Code is opt-in. |
-| Desktop applications | Downloads official DMGs for Chrome, ChatGPT, and Kiro IDE when the apps are missing. Docker Desktop is opt-in. |
+| AI command-line tools | Installs Codex CLI from its official installer. Claude Code is opt-in. |
+| Desktop applications | Downloads official DMGs for Chrome and ChatGPT when the apps are missing. Docker Desktop is opt-in. |
 | Optional Docker apps | Provides separate, opt-in launchers for useful local services. These apps never start as part of the main installer. |
 | Battery diagnostics | Shows a best-effort charge, power, maximum-capacity, and cycle summary beside the initial macOS check. The independent dashboard also provides JSON, TSV, Shell, and single-field output. Probe failure never changes installation success. |
 
-Docker Desktop is disabled by default because its terms may not fit every workplace. Review the current vendor terms, then add `--with-docker` whenever you install, update, or verify it. Claude Desktop and Claude Code are also disabled by default and use `--with-claude`.
+Docker Desktop is disabled by default because its terms may not fit every workplace. Review the current vendor terms, then add `--with-docker` whenever you install, update, or verify it. Claude Desktop and Claude Code are disabled by default and use `--with-claude`.
+
+One Bite no longer installs, updates, configures, or verifies Kiro. The current Kiro release no longer provides the CLI that One Bite used to add terminal hooks and operation prompts, so that integration no longer serves its intended purpose. Existing Kiro applications and personal settings are left untouched.
 
 ## Finish downloaded application and input-method installations
 
@@ -45,7 +47,7 @@ At the end of a run, the installer prints a numbered guide for every package pre
 2. Drag the `.app` into **Applications** and wait for the copy to finish.
 3. Eject the mounted installer disk.
 4. Start the app from **Applications**, sign in, and approve required macOS permissions.
-5. If Docker Desktop was selected, wait for the engine to start. Complete Kiro IDE and Kiro CLI onboarding separately.
+5. If Docker Desktop was selected, wait for the engine to start.
 
 The same guide is saved as `manual-steps.txt` in the run directory printed by the installer. After all manual work is complete, run the exact `--verify` command shown in that guide. A Docker-selected run also prints a separate `--docker-smoke` command for use after the engine is running.
 

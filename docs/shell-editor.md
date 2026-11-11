@@ -5,7 +5,6 @@
 | Template | Installed location and behavior |
 | --- | --- |
 | `claude-settings.json` | `${CLAUDE_CONFIG_DIR:-~/.claude}/settings.json`; created only when absent |
-| `kiro-permissions.json` | `~/.kiro/settings/permissions.yaml`; asks before tools on a new setup and preserves existing YAML |
 | `codex-config.toml` | `${CODEX_HOME:-~/.codex}/config.toml`; workspace-write and on-request approval on a new setup |
 | `env.zsh` | `~/.config/1bite/env.zsh`; Homebrew, AI CLI, Docker, Go, and VS Code environment and PATH |
 | `shell.zsh` | `~/.config/1bite/shell.zsh`; interactive loader for the eight modules below |
