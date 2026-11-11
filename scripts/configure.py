@@ -33,7 +33,6 @@ ITERM_PREFERENCES_PATH = Path('Library/Preferences/com.googlecode.iterm2.plist')
 ITERM_DEFAULT_KEY = 'Default Bookmark Guid'
 ITERM_GUID_PATTERN = re.compile(r'[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}')
 VSCODE_PATH = Path('Library/Application Support/Code/User/settings.json')
-KIRO_PATH = Path('.kiro/settings/permissions.yaml')
 GIT_IGNORE_PATH = Path('.config/1bite/gitignore-global')
 OBSIDIAN_TEMPLATE_PATH = Path('.config/1bite/obsidian-vault')
 OBSIDIAN_COMMAND_PATHS = (Path('.local/bin/ob'), Path('.local/bin/obn'))
@@ -501,7 +500,6 @@ def configure(home, config_dir, codex_home=None, claude_home=None, shell_home=No
     environment = (config_dir / 'env.zsh').read_bytes()
     vim = (config_dir / 'vimrc').read_bytes()
     vscode = (config_dir / 'vscode-settings.json').read_bytes()
-    kiro = (config_dir / 'kiro-permissions.json').read_bytes()
     git_defaults = validate_git_defaults((config_dir / 'git-defaults.json').read_text())
     git_ignore = validate_git_ignore((config_dir / 'gitignore-global').read_bytes())
     obsidian_files = obsidian_template_files(config_dir)
@@ -509,7 +507,6 @@ def configure(home, config_dir, codex_home=None, claude_home=None, shell_home=No
     current_git = git_values(home)
     if any(key.lower() not in current_git for key in git_defaults) and (home / '.gitconfig').is_symlink():
         raise ValueError(f'Refusing to update symlink Git configuration: {home / ".gitconfig"}')
-    validate_kiro(kiro)
     if not isinstance(json.loads(vscode), dict):
         raise ValueError('VS Code defaults must be a JSON object')
     validate(claude, codex, profile)
@@ -528,7 +525,7 @@ def configure(home, config_dir, codex_home=None, claude_home=None, shell_home=No
              home / ITERM_DEFAULT_STATE_PATH, home / ITERM_PREFERENCES_PATH,
              home / '.config/1bite/shell.zsh', home / '.config/1bite/env.zsh',
              home / '.config/1bite/vimrc', home / '.vimrc',
-             home / GIT_IGNORE_PATH, home / VSCODE_PATH, home / KIRO_PATH,
+             home / GIT_IGNORE_PATH, home / VSCODE_PATH,
              obsidian_directory, *obsidian_command_paths,
              zsh_directory, *[zsh_directory / name for name in ZSH_MODULES],
              shell_home / '.zshrc', shell_home / '.zprofile']
@@ -559,11 +556,6 @@ def configure(home, config_dir, codex_home=None, claude_home=None, shell_home=No
                 f'Review it manually, keep one loader, and rerun. Expected line: {canonical}')
         shell_entries.append((path, content, canonical, recognized))
     validate_managed_obsidian_tree(obsidian_directory, obsidian_files)
-    for path in (home / '.kiro', home / '.kiro/settings'):
-        if path.is_symlink():
-            raise ValueError(f'Refusing to configure Kiro through symlink: {path}')
-    if (home / KIRO_PATH).exists():
-        kiro_policy_status(home)
     repair_broken_zsh_completions()
     relocate_profile_artifacts(home)
     if with_claude:
@@ -590,9 +582,6 @@ def configure(home, config_dir, codex_home=None, claude_home=None, shell_home=No
         obsidian_command_path.chmod(0o755)
     # Existing VS Code settings may be JSONC. Preserve their bytes, including comments.
     write(home / VSCODE_PATH, vscode, preserve=True)
-    # JSON is valid YAML. Personal YAML policies remain byte-for-byte intact.
-    write(home / KIRO_PATH, kiro, preserve=True)
-    report_kiro(home)
     for path, original, canonical, recognized in shell_entries:
         content = update_source_line(original, canonical, recognized)
         write(path, content.encode())
@@ -611,39 +600,6 @@ def configure(home, config_dir, codex_home=None, claude_home=None, shell_home=No
     content = path.read_text() if path.exists() else ''
     content = update_source_line(content, VIM_SOURCE_LINE, VIM_SOURCE_LINES)
     write(path, content.encode())
-
-
-def validate_kiro(content):
-    data = json.loads(content)
-    capabilities = {'all', 'builtin', 'filesystem', 'fs_read', 'fs_write', 'shell', 'web_fetch',
-                    'web_search', 'mcp', 'subagent', 'skill', 'power', 'context', 'diagnostics', 'sandbox_network'}
-    if not isinstance(data, dict) or set(data) != {'rules'} or not isinstance(data['rules'], list) or not data['rules']:
-        raise ValueError('Kiro permissions must contain a nonempty rules array')
-    for rule in data['rules']:
-        if (not isinstance(rule, dict) or not {'capability', 'effect'} <= rule.keys()
-                or not rule.keys() <= {'capability', 'effect', 'match', 'exclude'}
-                or not isinstance(rule['capability'], str) or rule['capability'] not in capabilities
-                or not isinstance(rule['effect'], str) or rule['effect'] not in {'ask', 'deny', 'allow'}):
-            raise ValueError('Invalid Kiro permission rule')
-        for key in ('match', 'exclude'):
-            if key in rule and (not isinstance(rule[key], list) or not rule[key]
-                                or not all(isinstance(value, str) and value for value in rule[key])):
-                raise ValueError('Kiro match/exclude must be nonempty arrays of patterns')
-
-
-def kiro_policy_status(home):
-    content = (home / KIRO_PATH).read_bytes()
-    if not content.strip():
-        raise ValueError('Kiro permission file is empty; review it before using the agent')
-    return ('default-ask' if content == (ROOT / 'config/kiro-permissions.json').read_bytes()
-            else 'custom-unreviewed')
-
-
-def report_kiro(home):
-    if kiro_policy_status(home) == 'default-ask':
-        print('Kiro permission template: all capabilities ask (requires IDE 1.x; approve inside Kiro).')
-    else:
-        print('Kiro custom policy preserved, not audited by setup. Review effective permissions inside Kiro before use.')
 
 
 def verify(home, codex_home=None, claude_home=None, shell_home=None, with_claude=False, config_dir=ROOT / 'config'):
@@ -682,11 +638,8 @@ def verify(home, codex_home=None, claude_home=None, shell_home=None, with_claude
         raise ValueError('Vim configuration files must not be symlinks')
     if not vim.is_file() or vim.read_bytes() != (config_dir / 'vimrc').read_bytes():
         raise ValueError('Managed Vim configuration differs from the selected template')
-    if any(path.is_symlink() for path in (home / '.kiro', home / '.kiro/settings', home / KIRO_PATH)):
-        raise ValueError('Kiro permission file must not be a symlink')
     verify_git(home, validate_git_defaults((config_dir / 'git-defaults.json').read_text()),
                validate_git_ignore((config_dir / 'gitignore-global').read_bytes()))
-    report_kiro(home)
     for name in ('.zshrc', '.zprofile'):
         line = ENV_SOURCE_LINE if name == '.zprofile' else SOURCE_LINE
         if ((shell_home or home) / name).read_text().splitlines().count(line) != 1:

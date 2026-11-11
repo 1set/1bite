@@ -1,6 +1,6 @@
-.gitignore
 .github/pull_request_template.md
 .github/workflows/quality.yml
+.gitignore
 1bite
 AGENTS.md
 LICENSE
@@ -24,7 +24,6 @@ config/formulae.txt
 config/git-defaults.json
 config/gitignore-global
 config/iterm2-profile.json
-config/kiro-permissions.json
 config/obsidian-vault/.gitignore
 config/obsidian-vault/.obsidian/app.json
 config/obsidian-vault/.obsidian/appearance.json
@@ -73,7 +72,6 @@ scripts/desktop.py
 scripts/docker-smoke.sh
 scripts/editor.sh
 scripts/inventory.py
-scripts/kiro-shell.py
 scripts/manual.py
 scripts/ob.py
 scripts/official_ai.py
@@ -83,8 +81,8 @@ scripts/prepare-sogou.py
 scripts/quality.sh
 scripts/runtime-smoke.py
 scripts/session.sh
-scripts/welcome.sh
 scripts/verify.sh
+scripts/welcome.sh
 tests/fixtures/battery/pmset-log-batt-uppercase.txt
 tests/fixtures/battery/pmset-log-batt.txt
 tests/fixtures/config-golden.json
@@ -93,7 +91,6 @@ tests/test_desktop.py
 tests/test_doubao.py
 tests/test_editor.py
 tests/test_interruptions.py
-tests/test_kiro_shell.py
 tests/test_maintenance.py
 tests/test_obsidian.py
 tests/test_official_ai.py

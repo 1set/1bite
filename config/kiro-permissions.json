@@ -1,8 +1,0 @@
-{
-  "rules": [
-    {
-      "capability": "all",
-      "effect": "ask"
-    }
-  ]
-}
